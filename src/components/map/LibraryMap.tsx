@@ -201,48 +201,46 @@ export function LibraryMap({ isLoggedIn, onSessionExpired, onBookingSuccess }: L
         <div className="flex flex-col gap-6">
             {/* Sticky Header */}
             <div className="sticky top-0 z-20 bg-[#F2F5F9]/95 backdrop-blur-sm pb-4 pt-2 -mt-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:-mt-0 sm:pt-0 border-b border-[#E2E8F0]">
-                <div className="flex items-center gap-4 mb-4">
-                    <h2 className="text-xl sm:text-2xl font-bold text-[#002855] shrink-0">Mesas</h2>
-                    <div className="flex-1 border-b border-[#CBD5E1]" aria-hidden />
+                <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                    <h2 className="text-xl sm:text-2xl font-bold text-[#002855] shrink-0">El Mapa</h2>
+                    <div className="flex-1 min-w-0 border-b border-[#CBD5E1]" aria-hidden />
+                    <div className="relative shrink-0">
+                        <select
+                            value={selectedRow}
+                            onChange={(e) => setSelectedRow(e.target.value)}
+                            className="appearance-none bg-white border border-[#E2E8F0] text-[#1E2940] text-sm font-medium px-3 sm:px-4 py-1.5 pr-8 rounded-lg focus:outline-none focus:border-[#0057A8] focus:ring-2 focus:ring-[#0057A8]/20 cursor-pointer shadow-sm transition-colors"
+                        >
+                            <option value="all">Todas las filas</option>
+                            {rowsAvailable.map(row => (
+                                <option key={row} value={row.toString()}>Fila {row}</option>
+                            ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#64748B]">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Date tabs + row filter */}
+                {/* Date tabs */}
                 {availableDates.length > 0 && (
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="flex gap-2 overflow-x-auto scrollbar-none flex-1">
-                            {availableDates.map(date => {
-                                const { short, full } = formatDateTab(date);
-                                const isSelected = date === selectedDate;
-                                return (
-                                    <button
-                                        key={date}
-                                        onClick={() => setSelectedDate(date)}
-                                        title={full}
-                                        className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-colors whitespace-nowrap
-                                            ${isSelected
-                                                ? 'bg-[#002855] text-white border-[#002855]'
-                                                : 'bg-white text-[#64748B] border-[#CBD5E1] hover:border-[#002855] hover:text-[#002855]'}`}
-                                    >
-                                        {short}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        <div className="relative flex-shrink-0">
-                            <select
-                                value={selectedRow}
-                                onChange={(e) => setSelectedRow(e.target.value)}
-                                className="appearance-none bg-white border border-[#E2E8F0] text-[#1E2940] text-sm font-medium px-4 py-1.5 pr-8 rounded-lg focus:outline-none focus:border-[#0057A8] focus:ring-2 focus:ring-[#0057A8]/20 cursor-pointer shadow-sm transition-colors"
-                            >
-                                <option value="all">Todas las filas</option>
-                                {rowsAvailable.map(row => (
-                                    <option key={row} value={row.toString()}>Fila {row}</option>
-                                ))}
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#64748B]">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                            </div>
-                        </div>
+                    <div className="flex gap-2 overflow-x-auto scrollbar-none mb-4">
+                        {availableDates.map(date => {
+                            const { short, full } = formatDateTab(date);
+                            const isSelected = date === selectedDate;
+                            return (
+                                <button
+                                    key={date}
+                                    onClick={() => setSelectedDate(date)}
+                                    title={full}
+                                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-colors whitespace-nowrap
+                                        ${isSelected
+                                            ? 'bg-[#002855] text-white border-[#002855]'
+                                            : 'bg-white text-[#64748B] border-[#CBD5E1] hover:border-[#002855] hover:text-[#002855]'}`}
+                                >
+                                    {short}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
 
