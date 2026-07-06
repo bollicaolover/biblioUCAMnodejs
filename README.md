@@ -8,9 +8,15 @@ Reserva de mesas en la biblioteca UCAM con visualización en tiempo real. Interf
 
 ## Capturas
 
-| Mapa interactivo | Panel de reservas |
+| Mapa interactivo | Mis reservas |
 |:---:|:---:|
-| Selecciona mesa y franja horaria directamente en el plano | Gestiona, cancela y haz check-in de tus reservas |
+| ![Mapa interactivo](public/mapa-interactivo.png) | ![Mis reservas](public/mis-reservas.png) |
+| Disponibilidad en tiempo real por fila y mesa | Gestiona, cancela y haz check-in de tus reservas |
+
+| Selección de horarios |
+|:---:|
+| ![Selección de horarios](public/horarios.png) |
+| Reserva una mesa en varias franjas y días a la vez |
 
 ---
 
