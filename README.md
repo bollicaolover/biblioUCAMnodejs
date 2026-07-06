@@ -1,34 +1,19 @@
-# TakiSpot
+# [biblioucam.app](https://biblioucam.app)
 
-Reserva de mesas en la biblioteca UCAM con visualización en tiempo real. Interfaz moderna sobre la API de [TakeASpot](https://reservas.ucam.edu).
-
-**Demo en vivo:** [biblio-uca-mnodejs.vercel.app](https://biblio-uca-mnodejs.vercel.app)
-
----
-
-## Capturas
-
-| Mapa interactivo | Mis reservas |
-|:---:|:---:|
-| ![Mapa interactivo](public/mapa-interactivo.png) | ![Mis reservas](public/mis-reservas.png) |
-| Disponibilidad en tiempo real por fila y mesa | Gestiona, cancela y haz check-in de tus reservas |
-
-| Selección de horarios |
-|:---:|
-| ![Selección de horarios](public/horarios.png) |
-| Reserva una mesa en varias franjas y días a la vez |
+WebApp para la biblioteca de la UCAM. Básicamente me harté de tardar todos los dias 10 minutos en reservar así que hice esta app.
 
 ---
 
 ## Funcionalidades
 
-- **Mapa interactivo** — 165 mesas con estado en tiempo real (libre, parcial, ocupada)
-- **Reservas simples y múltiples** — una mesa en varias franjas, o varias mesas a la vez
-- **Multi-cuenta** — guarda varias cuentas UCAM y cambia entre ellas sin volver a iniciar sesión
-- **Check-in** — confirma tu presencia desde la propia app
-- **Sesión pública** — el mapa es visible sin login; las reservas requieren autenticación
-- **Responsive** — sidebar en escritorio, navbar compacta en móvil
-- **Analytics** — eventos GA4 opcionales (login, reservas, check-in…)
+- **Mapa interactivo** — mesas con su disponibilidad en tiempo real
+- **Reservas múltiples** — Para no tener que pulsar 18 millones de botones
+- **Multi-cuenta** — para reservar varios días
+- **Check-in** — no hace falta QR
+- **Responsive** — apta para ordenadores, móviles, nintendo switch y lavadoras
+- **Analytics** — proximamente ;)
+
+de aquí para abajo es la explicación de como instalarlo todo (hecho con IA 100%)
 
 ---
 
