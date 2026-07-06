@@ -13,7 +13,7 @@ export async function GET() {
 
         return NextResponse.json({
             ok: true,
-            email: appSession.email || 'Usuario'
+            email: appSession.activeEmail || 'Usuario'
         });
     } catch {
         return NextResponse.json(

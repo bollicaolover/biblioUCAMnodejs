@@ -113,12 +113,15 @@ export default function HomePage() {
               />
             </div>
 
-            {/* Mis Reservas Panel (Moved here for mobile visibility) */}
-            <div className="mb-8 w-full xl:max-w-2xl">
-              <MyBookingsPanel isLoggedIn={isLoggedIn} onSessionExpired={handleSessionExpired} />
-            </div>
+            {/* Main panels wrapped with userEmail key to force remount on account switch */}
+            <div key={userEmail || 'anonymous'}>
+              {/* Mis Reservas Panel (Moved here for mobile visibility) */}
+              <div className="mb-8 w-full xl:max-w-2xl">
+                <MyBookingsPanel isLoggedIn={isLoggedIn} onSessionExpired={handleSessionExpired} />
+              </div>
 
-            <LibraryMap isLoggedIn={isLoggedIn} onSessionExpired={handleSessionExpired} />
+              <LibraryMap isLoggedIn={isLoggedIn} onSessionExpired={handleSessionExpired} />
+            </div>
           </div>
         </div>
       </main>

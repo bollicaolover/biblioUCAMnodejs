@@ -84,28 +84,25 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired }: MyBookingsPane
         }
     }
 
-    // Comprueba si la reserva está lista para hacer check-in (15 mins antes hasta el final)
+    // Comprueba si la reserva está lista para hacer check-in.
+    // Regla: 15 min antes del inicio, y máximo 30 min después de reservar.
+    // Como el frontend no sabe la hora exacta de reserva, dejamos el botón activo hasta 30 min después del FIN del turno (el máximo teórico). La API real denegará si es inválido.
     function canCheckin(b: MyBooking): boolean {
-        // Asume formato "YYYY-MM-DD" y "HH:MM"
         const [y, m, d] = b.date.split('-');
         const [hourStr, minStr] = b.timeFrom.split(':');
+        const [endHourStr, endMinStr] = b.timeTo.split(':');
 
-        if (!y || !m || !d || !hourStr || !minStr) return false;
+        if (!y || !m || !d || !hourStr || !minStr || !endHourStr || !endMinStr) return false;
 
         const startTime = new Date(Number(y), Number(m) - 1, Number(d), Number(hourStr), Number(minStr), 0);
+        const endTime = new Date(Number(y), Number(m) - 1, Number(d), Number(endHourStr), Number(endMinStr), 0);
         const now = new Date();
 
-        // Calculamos la diferencia en minutos (puede ser negativa si es en el pasado)
-        const diffMinutes = (startTime.getTime() - now.getTime()) / (1000 * 60);
+        const diffStartMin = (startTime.getTime() - now.getTime()) / (1000 * 60);
+        const diffEndMin = (endTime.getTime() - now.getTime()) / (1000 * 60);
 
-        // Permitir check-in desde 15 minutos antes
-        // O si ya ha empezado (diffMinutes <= 0) pero aún no termina.
-        // Para simplificar, asumiremos que si NO es "Dentro" y "diffMinutes < 15", podemos hacer checkin.
-        if (diffMinutes <= 15) {
-            return true;
-        }
-
-        return false;
+        // Visible desde 15 min antes del inicio, hasta 30 min después del fin.
+        return diffStartMin <= 15 && diffEndMin > -30;
     }
 
     if (!isLoggedIn) {
@@ -168,42 +165,42 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired }: MyBookingsPane
                             </div>
 
                             {/* Botonera inferior */}
-                            {!isDentro && (
-                                <div className="mt-2 flex items-center gap-2">
-                                    {isCheckinEligible && (
-                                        <button
-                                            onClick={() => handleCheckin(b.id)}
-                                            disabled={status === 'checkin_loading' || status === 'checkin_done'}
-                                            title="Confirmar asistencia (Check-in)"
-                                            className="flex-1 flex items-center justify-center gap-2 py-2 border border-[#00FF41] hover:bg-[#00FF41] hover:text-[#050505] bg-[#00FF41]/10 text-[#00FF41] font-bold text-sm disabled:opacity-50 transition-colors"
-                                        >
-                                            {status === 'checkin_loading' ? (
-                                                <><span className="h-4 w-4 border-2 border-[#00FF41]/30 border-t-[#00FF41] animate-spin inline-block" /> CONFIRMANDO...</>
-                                            ) : status === 'checkin_error' ? (
-                                                '[ERR] REINTENTAR'
-                                            ) : status === 'checkin_done' ? (
-                                                'CONFIRMADO'
-                                            ) : (
-                                                '[ CHECK-IN ]'
-                                            )}
-                                        </button>
-                                    )}
+                            <div className="mt-2 flex items-center gap-2">
+                                {isCheckinEligible && (
                                     <button
-                                        onClick={() => handleCancel(b.id)}
-                                        disabled={status === 'loading' || status === 'checkin_loading'}
-                                        title="Cancelar reserva"
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2 border border-[#FF003C] hover:bg-[#FF003C] hover:text-[#050505] bg-transparent text-[#FF003C] font-bold text-sm disabled:opacity-50 transition-colors ${!isCheckinEligible && 'w-full'}`}
+                                        onClick={() => handleCheckin(b.id)}
+                                        disabled={status === 'checkin_loading' || status === 'checkin_done'}
+                                        title="Confirmar asistencia (Check-in)"
+                                        className="flex-1 flex items-center justify-center gap-2 py-2 border border-[#00FF41] hover:bg-[#00FF41] hover:text-[#050505] bg-[#00FF41]/10 text-[#00FF41] font-bold text-sm disabled:opacity-50 transition-colors"
                                     >
-                                        {status === 'loading' ? (
-                                            <span className="h-4 w-4 border-2 border-[#FF003C]/30 border-t-[#FF003C] animate-spin inline-block" />
-                                        ) : status === 'error' ? (
-                                            '[ERR]'
+                                        {status === 'checkin_loading' ? (
+                                            <><span className="h-4 w-4 border-2 border-[#00FF41]/30 border-t-[#00FF41] animate-spin inline-block" /> CONFIRMANDO...</>
+                                        ) : status === 'checkin_error' ? (
+                                            '[ERR] REINTENTAR'
+                                        ) : status === 'checkin_done' ? (
+                                            'CONFIRMADO'
                                         ) : (
-                                            '[ CANCELAR ]'
+                                            '[ CHECK-IN ]'
                                         )}
                                     </button>
-                                </div>
-                            )}
+                                )}
+                                <button
+                                    onClick={() => handleCancel(b.id)}
+                                    disabled={status === 'loading' || status === 'checkin_loading' || isDentro}
+                                    title={isDentro ? "Estás dentro de la instalación" : "Cancelar reserva"}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 border border-[#FF003C] hover:bg-[#FF003C] hover:text-[#050505] bg-transparent text-[#FF003C] font-bold text-sm disabled:opacity-50 transition-colors ${!isCheckinEligible ? 'w-full' : ''} ${isDentro ? 'cursor-not-allowed opacity-50 bg-[#FF003C]/10' : ''}`}
+                                >
+                                    {status === 'loading' ? (
+                                        <span className="h-4 w-4 border-2 border-[#FF003C]/30 border-t-[#FF003C] animate-spin inline-block" />
+                                    ) : status === 'error' ? (
+                                        '[ERR]'
+                                    ) : isDentro ? (
+                                        '[ DENTRO ]'
+                                    ) : (
+                                        '[ CANCELAR ]'
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     );
                 })}

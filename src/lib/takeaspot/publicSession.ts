@@ -10,7 +10,6 @@
  */
 
 import type { Session } from '@/types/domain';
-import { login } from './api';
 
 // Cache en memoria del proceso (sobrevive entre requests en dev y prod)
 let cachedPublicSession: Session | null = null;
@@ -38,17 +37,8 @@ export async function getPublicSession(): Promise<Session | null> {
 
     loginInProgress = (async () => {
         try {
-            const result = await login(email, password);
-            if (result.ok) {
-                // El login guarda la sesión en iron-session (cookie del usuario actual),
-                // pero la sesión pública la guardamos en memoria del servidor sin cookie.
-                // Necesitamos construir la sesión directamente del login.
-                // Re-usamos la misma sesión que se guardó con saveTakeASpotSession
-                // leyendo desde el store interno.
-                cachedPublicSession = await getPublicSessionFromLogin(email, password);
-                return cachedPublicSession;
-            }
-            return null;
+            cachedPublicSession = await getPublicSessionFromLogin(email, password);
+            return cachedPublicSession;
         } catch {
             return null;
         } finally {

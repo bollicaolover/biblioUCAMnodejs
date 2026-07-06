@@ -11,8 +11,8 @@ import { SESSION_DURATION_MS } from '@/lib/constants/schedules';
 
 /** La sesión que iron-session almacena en la cookie cifrada */
 export interface AppSessionData {
-    takeaspot?: Session;
-    email?: string;
+    accounts?: Record<string, Session>;
+    activeEmail?: string;
 }
 
 export const sessionOptions: SessionOptions = {
@@ -35,16 +35,23 @@ export async function getAppSession(): Promise<IronSession<AppSessionData>> {
 /** Lee la sesión de TakeASpot desde la cookie cifrada */
 export async function getTakeASpotSession(): Promise<Session | null> {
     const session = await getAppSession();
-    if (!session.takeaspot) return null;
+    if (!session.activeEmail || !session.accounts || !session.accounts[session.activeEmail]) return null;
+
+    const activeSession = session.accounts[session.activeEmail];
 
     // Verificar si la sesión ha expirado
-    if (Date.now() > session.takeaspot.expiresAt) {
-        session.takeaspot = undefined;
+    if (Date.now() > activeSession.expiresAt) {
+        delete session.accounts[session.activeEmail];
+        if (Object.keys(session.accounts).length === 0) {
+            session.activeEmail = undefined;
+        } else {
+            session.activeEmail = Object.keys(session.accounts)[0];
+        }
         await session.save();
         return null;
     }
 
-    return session.takeaspot;
+    return activeSession;
 }
 
 /** Guarda la sesión de TakeASpot en la cookie cifrada */
@@ -54,13 +61,52 @@ export async function saveTakeASpotSession(
     email?: string
 ): Promise<void> {
     const session = await getAppSession();
-    session.takeaspot = {
-        sessionCookie,
-        xsrfToken,
-        expiresAt: Date.now() + SESSION_DURATION_MS,
-    };
-    if (email) session.email = email;
+    if (!session.accounts) session.accounts = {};
+
+    const targetEmail = email ?? session.activeEmail;
+
+    if (targetEmail && targetEmail !== process.env.PUBLIC_UCAM_EMAIL) {
+        session.accounts[targetEmail] = {
+            sessionCookie,
+            xsrfToken,
+            expiresAt: Date.now() + SESSION_DURATION_MS,
+        };
+        session.activeEmail = targetEmail;
+
+        // Mantener como máximo 4 cuentas
+        const emails = Object.keys(session.accounts);
+        if (emails.length > 4) {
+            const oldestEmail = emails.find(e => e !== targetEmail); // Borramos la primera que no sea la que acabamos de guardar
+            if (oldestEmail) delete session.accounts[oldestEmail];
+        }
+    }
+
     await session.save();
+}
+
+/** Cambia la cuenta activa */
+export async function switchActiveAccount(email: string): Promise<boolean> {
+    const session = await getAppSession();
+    if (session.accounts && session.accounts[email]) {
+        session.activeEmail = email;
+        await session.save();
+        return true;
+    }
+    return false;
+}
+
+/** Borra una cuenta específica */
+export async function removeAccount(email: string): Promise<void> {
+    const session = await getAppSession();
+    if (session.accounts && session.accounts[email]) {
+        delete session.accounts[email];
+
+        if (session.activeEmail === email) {
+            const remaining = Object.keys(session.accounts);
+            session.activeEmail = remaining.length > 0 ? remaining[0] : undefined;
+        }
+        await session.save();
+    }
 }
 
 /** Destruye la sesión */

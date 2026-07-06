@@ -220,8 +220,8 @@ export function BookingModal({ seat, isLoggedIn, isFavorite, onToggleFavorite, o
                                         </h3>
                                         <div className="flex flex-col gap-1 mb-2">
                                             {slots.map((slot) => {
-                                                const startMin = parseInt(slot.start.split(':')[0]) * 60 + parseInt(slot.start.split(':')[1]);
-                                                const passed = isToday && hora > startMin;
+                                                const endMin = parseInt(slot.end.split(':')[0]) * 60 + parseInt(slot.end.split(':')[1]);
+                                                const passed = isToday && hora >= endMin;
                                                 const isSelected = selectedSlots.some(s => s.date === date && s.start === slot.start);
 
                                                 if (slot.estado === 'Reservado' || passed) {
