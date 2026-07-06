@@ -1,36 +1,123 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TakiSpot
 
-## Getting Started
+Reserva de mesas en la biblioteca UCAM con visualización en tiempo real. Interfaz moderna sobre la API de [TakeASpot](https://reservas.ucam.edu).
 
-First, run the development server:
+**Demo en vivo:** [biblio-uca-mnodejs.vercel.app](https://biblio-uca-mnodejs.vercel.app)
+
+---
+
+## Capturas
+
+| Mapa interactivo | Panel de reservas |
+|:---:|:---:|
+| Selecciona mesa y franja horaria directamente en el plano | Gestiona, cancela y haz check-in de tus reservas |
+
+---
+
+## Funcionalidades
+
+- **Mapa interactivo** — 165 mesas con estado en tiempo real (libre, parcial, ocupada)
+- **Reservas simples y múltiples** — una mesa en varias franjas, o varias mesas a la vez
+- **Multi-cuenta** — guarda varias cuentas UCAM y cambia entre ellas sin volver a iniciar sesión
+- **Check-in** — confirma tu presencia desde la propia app
+- **Sesión pública** — el mapa es visible sin login; las reservas requieren autenticación
+- **Responsive** — sidebar en escritorio, navbar compacta en móvil
+- **Analytics** — eventos GA4 opcionales (login, reservas, check-in…)
+
+---
+
+## Stack
+
+| Capa | Tecnología |
+|------|------------|
+| Framework | [Next.js 16](https://nextjs.org) (App Router) |
+| UI | React 19 · Tailwind CSS 4 |
+| Sesión | [iron-session](https://github.com/vvo/iron-session) (cookies HttpOnly cifradas) |
+| API | TakeASpot (`reservas.ucam.edu`) |
+| Deploy | [Vercel](https://vercel.com) |
+
+---
+
+## Inicio rápido
+
+### Requisitos
+
+- Node.js 20+
+- Cuenta UCAM con acceso a TakeASpot
+
+### Instalación
 
 ```bash
+git clone https://github.com/bollicaolover/biblioUCAMnodejs.git
+cd biblioUCAMnodejs
+npm install
+cp .env.example .env.local   # rellena las variables
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Variables de entorno
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Crea `.env.local` a partir de `.env.example`:
 
-## Learn More
+| Variable | Descripción |
+|----------|-------------|
+| `SESSION_SECRET` | Secreto para cifrar cookies (mín. 32 caracteres aleatorios) |
+| `PUBLIC_UCAM_EMAIL` | Email UCAM para la sesión pública del mapa (solo lectura) |
+| `PUBLIC_UCAM_PASSWORD` | Contraseña de esa cuenta |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | ID de medición GA4 *(opcional)* |
 
-To learn more about Next.js, take a look at the following resources:
+> La sesión pública solo se usa para **consultar disponibilidad**. Crear o cancelar reservas siempre requiere el login del usuario.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Estructura del proyecto
 
-## Deploy on Vercel
+```
+src/
+├── app/
+│   ├── api/          # Rutas API (auth, bookings, slots, services)
+│   └── page.tsx      # Página principal
+├── components/
+│   ├── auth/         # Login y gestión de cuentas
+│   ├── booking/      # Modal de reserva y panel de mis reservas
+│   ├── map/          # Mapa interactivo de la biblioteca
+│   └── analytics/    # Google Analytics
+├── lib/
+│   ├── takeaspot/    # Cliente HTTP, sesión y login contra TakeASpot
+│   ├── booking/      # Lógica de check-in y visualización
+│   └── constants/    # Horarios, mesas y configuración
+└── types/            # Tipos TypeScript
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Límites del sistema TakeASpot
+
+- Máximo **6 reservas por día**
+- Franjas horarias de 2 horas (08:30 – 22:30)
+- Las sesiones expiran tras ~4,8 h de inactividad
+
+---
+
+## Scripts
+
+```bash
+npm run dev      # Servidor de desarrollo
+npm run build    # Build de producción
+npm run start    # Servidor de producción
+npm run lint     # ESLint
+```
+
+---
+
+## Aviso
+
+Este proyecto **no está afiliado a la UCAM ni a TakeASpot**. Es una herramienta independiente que consume la API pública del sistema de reservas universitario. Úsala bajo tu propia responsabilidad.
+
+---
+
+## Autor
+
+Hecho por **G1904** · v6.7
