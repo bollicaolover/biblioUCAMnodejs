@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { trackLogin, trackLoginFailed } from '@/lib/analytics/events';
 
-const TAKEASPOT_RESET_URL = 'https://app.takeaspot.net/password/reset';
+const TAKEASPOT_RESET_URL = 'https://reservas.ucam.edu/password/reset';
 
 function PasswordHelpButton() {
     const [open, setOpen] = useState(false);
