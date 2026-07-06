@@ -156,6 +156,8 @@ export function BookingModal({ seat, isLoggedIn, onClose, onSessionExpired, onBo
         if (hadSuccess) {
             trackBookingCreated({
                 pitchId: seat.pitchId,
+                row: seat.row,
+                seat: seat.seat,
                 slotsCount: totalSlotsCreated,
                 datesCount: successDatesCount,
             });

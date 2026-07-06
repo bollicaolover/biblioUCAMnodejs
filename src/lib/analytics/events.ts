@@ -37,11 +37,15 @@ export function trackSelectSeat(pitchId: string) {
 
 export function trackBookingCreated(params: {
   pitchId: string;
+  row: number;
+  seat: number;
   slotsCount: number;
   datesCount: number;
 }) {
   track('booking_created', {
     pitch_id: params.pitchId,
+    row: params.row,
+    seat: params.seat,
     slots_count: params.slotsCount,
     dates_count: params.datesCount,
   });
