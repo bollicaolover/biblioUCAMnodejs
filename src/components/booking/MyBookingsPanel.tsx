@@ -6,6 +6,7 @@ import type { MyBooking } from '@/lib/takeaspot/api';
 interface MyBookingsPanelProps {
     isLoggedIn: boolean;
     onSessionExpired: () => void;
+    refreshTrigger?: number;
 }
 
 function formatDate(dateStr: string): string {
@@ -16,11 +17,12 @@ function formatDate(dateStr: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-export function MyBookingsPanel({ isLoggedIn, onSessionExpired }: MyBookingsPanelProps) {
+export function MyBookingsPanel({ isLoggedIn, onSessionExpired, refreshTrigger = 0 }: MyBookingsPanelProps) {
     const [bookings, setBookings] = useState<MyBooking[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [actionStatus, setActionStatus] = useState<Record<string, 'loading' | 'done' | 'error' | 'checkin_loading' | 'checkin_error' | 'checkin_done'>>({});
+    const [expanded, setExpanded] = useState(false);
 
     const loadBookings = useCallback(async () => {
         if (!isLoggedIn) return;
@@ -44,6 +46,10 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired }: MyBookingsPane
 
     useEffect(() => { loadBookings(); }, [loadBookings]);
 
+    useEffect(() => {
+        if (refreshTrigger > 0) loadBookings();
+    }, [refreshTrigger, loadBookings]);
+
     async function handleCancel(bookingId: string) {
         setActionStatus((prev) => ({ ...prev, [bookingId]: 'loading' }));
         try {
@@ -55,7 +61,7 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired }: MyBookingsPane
                 return;
             }
             setActionStatus((prev) => ({ ...prev, [bookingId]: 'done' }));
-            setTimeout(loadBookings, 500);
+            loadBookings();
         } catch {
             setActionStatus((prev) => ({ ...prev, [bookingId]: 'error' }));
         }
@@ -77,16 +83,13 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired }: MyBookingsPane
                 return;
             }
             setActionStatus((prev) => ({ ...prev, [bookingId]: 'checkin_done' }));
-            setTimeout(loadBookings, 500);
+            loadBookings();
         } catch {
             alert('Error de red al confirmar reserva.');
             setActionStatus((prev) => ({ ...prev, [bookingId]: 'checkin_error' }));
         }
     }
 
-    // Comprueba si la reserva está lista para hacer check-in.
-    // Regla: 15 min antes del inicio, y máximo 30 min después de reservar.
-    // Como el frontend no sabe la hora exacta de reserva, dejamos el botón activo hasta 30 min después del FIN del turno (el máximo teórico). La API real denegará si es inválido.
     function canCheckin(b: MyBooking): boolean {
         const [y, m, d] = b.date.split('-');
         const [hourStr, minStr] = b.timeFrom.split(':');
@@ -101,109 +104,136 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired }: MyBookingsPane
         const diffStartMin = (startTime.getTime() - now.getTime()) / (1000 * 60);
         const diffEndMin = (endTime.getTime() - now.getTime()) / (1000 * 60);
 
-        // Visible desde 15 min antes del inicio, hasta 30 min después del fin.
-        return diffStartMin <= 15 && diffEndMin > -30;
+        return diffStartMin <= 0 && diffStartMin > -30 && diffEndMin > 0;
     }
 
     if (!isLoggedIn) {
         return (
-            <div className="bg-transparent border border-[#00FF41]/30 p-4 text-[#E0E0E0]/50 text-sm text-center font-medium">
-                INICIA SESIÓN PARA VER TUS RESERVAS
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 text-center text-[#64748B] text-sm shadow-sm">
+                <svg className="w-8 h-8 mx-auto mb-2 text-[#CBD5E1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Inicia sesión para ver tus reservas
             </div>
         );
     }
 
     return (
-        <div className="mt-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between mb-4 border-b border-[#00FF41]/40 pb-2">
-                <h2 className="text-xl sm:text-2xl font-bold text-[#00FF41] tracking-wider">&gt; MIS_RESERVAS</h2>
+        <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-4 mb-4">
+                <h2 className="text-xl font-bold text-[#002855] shrink-0">Mis reservas</h2>
+                <div className="flex-1 border-b border-[#CBD5E1]" aria-hidden />
             </div>
 
-            <div className="max-h-[400px] overflow-y-auto flex flex-col gap-3 pb-2 px-1">
+            <div className="flex flex-col gap-3">
                 {error && (
-                    <div className="px-4 py-3 text-[#FF003C] bg-transparent text-xs font-medium border border-[#FF003C]">[ERR] {error}</div>
+                    <div className="px-4 py-3 text-[#DC2626] bg-[#FEF2F2] text-xs font-medium border border-[#FECACA] rounded-xl">{error}</div>
                 )}
 
-                {!isLoading && !error && bookings.length === 0 && (
-                    <div className="py-6 text-[#E0E0E0]/50 text-sm text-center font-medium bg-transparent border border-[#00FF41]/20">
-                        NO TIENES RESERVAS ACTIVAS
+                {isLoading && bookings.length === 0 && (
+                    <div className="flex items-center justify-center py-8 text-[#64748B] gap-2">
+                        <span className="h-4 w-4 border-2 border-[#0057A8]/30 border-t-[#0057A8] animate-spin rounded-full" />
+                        <span className="text-sm">Cargando reservas...</span>
                     </div>
                 )}
 
-                {bookings.map((b) => {
-                    const status = actionStatus[b.id];
-                    const isDone = status === 'done';
-                    if (isDone) return null;
+                {!isLoading && !error && bookings.length === 0 && (
+                    <div className="py-8 text-[#64748B] text-sm text-center bg-white rounded-xl border border-[#E2E8F0] shadow-sm">
+                        No tienes reservas activas
+                    </div>
+                )}
 
-                    const isDentro = b.status.toLowerCase().includes('dentro');
-                    const isCheckinEligible = !isDentro && canCheckin(b);
+                {(() => {
+                    const active = bookings.filter(b => actionStatus[b.id] !== 'done');
+                    const first = active[0];
+                    const rest = active.slice(1);
+
+                    const renderCard = (b: MyBooking) => {
+                        const status = actionStatus[b.id];
+                        const isDentro = b.status.toLowerCase().includes('dentro');
+                        const isAusente = b.status.toLowerCase().includes('ausente');
+                        const isCheckinEligible = !isDentro && !isAusente && canCheckin(b);
+
+                        return (
+                            <div
+                                key={b.id}
+                                className={`bg-white rounded-xl border shadow-sm p-4 flex flex-col gap-2 ${isDentro ? 'border-[#16A34A] ring-1 ring-[#16A34A]/20' : 'border-[#E2E8F0]'}`}
+                            >
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[#1E2940] font-semibold text-sm">{formatDate(b.date)}</span>
+                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isDentro ? 'bg-[#DCFCE7] text-[#16A34A]' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
+                                        {b.status || 'Aceptado'}
+                                    </span>
+                                </div>
+                                <div className={`font-bold text-xl tracking-wide ${isDentro ? 'text-[#16A34A]' : 'text-[#002855]'}`}>
+                                    {b.timeFrom} – {b.timeTo}
+                                </div>
+                                <div className="text-[#0057A8] font-semibold text-sm bg-[#EEF4FB] rounded-lg py-1.5 px-3 inline-block self-start">
+                                    {b.seat || b.location}
+                                </div>
+                                <div className="mt-1 flex items-center gap-2">
+                                    {isCheckinEligible && (
+                                        <button
+                                            onClick={() => handleCheckin(b.id)}
+                                            disabled={status === 'checkin_loading' || status === 'checkin_done'}
+                                            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-[#16A34A] bg-[#F0FDF4] hover:bg-[#DCFCE7] text-[#16A34A] font-semibold text-sm disabled:opacity-50 transition-colors"
+                                        >
+                                            {status === 'checkin_loading' ? (
+                                                <><span className="h-4 w-4 border-2 border-[#16A34A]/30 border-t-[#16A34A] animate-spin inline-block rounded-full" /> Confirmando...</>
+                                            ) : status === 'checkin_error' ? 'Error — reintentar'
+                                            : status === 'checkin_done' ? 'Confirmado ✓'
+                                            : 'Check-in'}
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => handleCancel(b.id)}
+                                        disabled={status === 'loading' || status === 'checkin_loading' || isDentro}
+                                        title={isDentro ? 'Estás dentro de la instalación' : 'Cancelar reserva'}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-[#DC2626] bg-white hover:bg-[#DC2626] hover:text-white text-[#DC2626] font-semibold text-sm disabled:opacity-50 transition-colors ${!isCheckinEligible ? 'w-full' : ''} ${isDentro ? 'cursor-not-allowed' : ''}`}
+                                    >
+                                        {status === 'loading' ? (
+                                            <span className="h-4 w-4 border-2 border-[#DC2626]/30 border-t-[#DC2626] animate-spin inline-block rounded-full" />
+                                        ) : status === 'error' ? 'Error'
+                                        : isDentro ? 'Dentro'
+                                        : 'Cancelar'}
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    };
 
                     return (
-                        <div
-                            key={b.id}
-                            className={`bg-[#050505] border ${isDentro ? 'border-[#00FF41]' : 'border-[#00FF41]/30'} p-4 flex flex-col gap-1`}
-                        >
-                            {/* Primera fila: Fecha y Estado */}
-                            <div className="flex justify-between items-center mb-1">
-                                <div className="flex items-center gap-2 text-[#00FF41] font-bold text-sm">
-                                    <span>&gt;</span>
-                                    <span>{formatDate(b.date)}</span>
+                        <>
+                            {first && renderCard(first)}
+
+                            {/* Collapsible rest — grid-rows trick for height:auto animation */}
+                            {rest.length > 0 && (
+                                <div className={`grid transition-all duration-300 ease-in-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                                    <div className="overflow-hidden flex flex-col gap-3">
+                                        <div className="pt-0 flex flex-col gap-3">
+                                            {rest.map(renderCard)}
+                                        </div>
+                                    </div>
                                 </div>
-                                <span className={`text-xs font-bold ${isDentro ? 'text-[#00FF41] animate-pulse' : 'text-[#00FF41]/60'}`}>
-                                    [{b.status || 'ACEPTADO'}]
-                                </span>
-                            </div>
+                            )}
 
-                            {/* Segunda fila: Horario */}
-                            <div className={`font-bold text-lg tracking-wide ${isDentro ? 'text-[#00FF41]' : 'text-[#E0E0E0]'}`}>
-                                {b.timeFrom} - {b.timeTo}
-                            </div>
-
-                            {/* Tercera fila: Mesa */}
-                            <div className="text-[#00FF41] font-bold text-sm bg-[#00FF41]/10 border border-[#00FF41]/30 py-1.5 px-3 mb-2 uppercase tracking-wide inline-block self-start">
-                                [ {b.seat || b.location} ]
-                            </div>
-
-                            {/* Botonera inferior */}
-                            <div className="mt-2 flex items-center gap-2">
-                                {isCheckinEligible && (
-                                    <button
-                                        onClick={() => handleCheckin(b.id)}
-                                        disabled={status === 'checkin_loading' || status === 'checkin_done'}
-                                        title="Confirmar asistencia (Check-in)"
-                                        className="flex-1 flex items-center justify-center gap-2 py-2 border border-[#00FF41] hover:bg-[#00FF41] hover:text-[#050505] bg-[#00FF41]/10 text-[#00FF41] font-bold text-sm disabled:opacity-50 transition-colors"
-                                    >
-                                        {status === 'checkin_loading' ? (
-                                            <><span className="h-4 w-4 border-2 border-[#00FF41]/30 border-t-[#00FF41] animate-spin inline-block" /> CONFIRMANDO...</>
-                                        ) : status === 'checkin_error' ? (
-                                            '[ERR] REINTENTAR'
-                                        ) : status === 'checkin_done' ? (
-                                            'CONFIRMADO'
-                                        ) : (
-                                            '[ CHECK-IN ]'
-                                        )}
-                                    </button>
-                                )}
+                            {rest.length > 0 && (
                                 <button
-                                    onClick={() => handleCancel(b.id)}
-                                    disabled={status === 'loading' || status === 'checkin_loading' || isDentro}
-                                    title={isDentro ? "Estás dentro de la instalación" : "Cancelar reserva"}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-2 border border-[#FF003C] hover:bg-[#FF003C] hover:text-[#050505] bg-transparent text-[#FF003C] font-bold text-sm disabled:opacity-50 transition-colors ${!isCheckinEligible ? 'w-full' : ''} ${isDentro ? 'cursor-not-allowed opacity-50 bg-[#FF003C]/10' : ''}`}
+                                    onClick={() => setExpanded(v => !v)}
+                                    className="flex items-center justify-center gap-1.5 w-full py-2 text-sm text-[#64748B] hover:text-[#002855] font-medium transition-colors"
                                 >
-                                    {status === 'loading' ? (
-                                        <span className="h-4 w-4 border-2 border-[#FF003C]/30 border-t-[#FF003C] animate-spin inline-block" />
-                                    ) : status === 'error' ? (
-                                        '[ERR]'
-                                    ) : isDentro ? (
-                                        '[ DENTRO ]'
-                                    ) : (
-                                        '[ CANCELAR ]'
-                                    )}
+                                    <svg
+                                        className={`w-4 h-4 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                    {expanded ? 'Ocultar reservas' : `Ver todas mis reservas (${active.length})`}
                                 </button>
-                            </div>
-                        </div>
+                            )}
+                        </>
                     );
-                })}
+                })()}
             </div>
         </div>
     );

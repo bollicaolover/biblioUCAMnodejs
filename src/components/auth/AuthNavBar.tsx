@@ -11,23 +11,156 @@ interface AuthNavBarProps {
 }
 
 export function AuthNavBar(_props: AuthNavBarProps) {
-    // Hidden component unused but kept for backwards compatibility
+    return <div style={{ display: 'none' }} />;
+}
+
+// Matte outline + hover fill, adapted for navy sidebar (#002855)
+const loginFormNavyOverrides =
+    '[&_label]:text-white/80 [&_input]:bg-white/10 [&_input]:border-white/20 [&_input]:text-white [&_input]:placeholder:text-white/30 [&_input:focus]:border-white/60 [&_input:focus]:ring-white/10 [&_.password-help-btn]:border-white/40 [&_.password-help-btn]:text-white/70 [&_.password-help-btn]:hover:border-white [&_.password-help-btn]:hover:text-white [&_button[type=submit]]:bg-white/5 [&_button[type=submit]]:border [&_button[type=submit]]:border-white/50 [&_button[type=submit]]:text-white [&_button[type=submit]]:font-semibold [&_button[type=submit]]:hover:bg-white [&_button[type=submit]]:hover:text-[#002855] [&_button[type=submit]]:disabled:opacity-50';
+const btnMatteNavy =
+    'text-xs font-semibold rounded-lg py-2 transition-colors border bg-white/5';
+const btnMatteNavyPrimary = `${btnMatteNavy} text-white border-white/50 hover:bg-white hover:text-[#002855]`;
+const btnMatteNavyDanger = `${btnMatteNavy} text-red-300 border-red-400/60 hover:bg-[#DC2626] hover:text-white hover:border-[#DC2626]`;
+const btnMatteNavySm =
+    'text-xs font-semibold rounded-md px-2 py-0.5 transition-colors border bg-white/5';
+const btnMatteNavySmPrimary = `${btnMatteNavySm} text-white/80 border-white/40 hover:bg-white hover:text-[#002855]`;
+const btnMatteNavySmDanger = `${btnMatteNavySm} text-red-300 border-red-400/50 hover:bg-[#DC2626] hover:text-white hover:border-[#DC2626]`;
+
+// ─── Panel lateral (desktop sidebar) ───────────────────────────────────────
+export function SidebarUserPanel({ isLoggedIn, userEmail, onLoginSuccess, onLogout }: AuthNavBarProps) {
+    const [accounts, setAccounts] = useState<string[]>([]);
+    const [isAdding, setIsAdding] = useState(false);
+
+    useEffect(() => {
+        if (isLoggedIn) fetchAccounts();
+    }, [isLoggedIn, userEmail]);
+
+    async function fetchAccounts() {
+        try {
+            const res = await fetch('/api/auth/accounts');
+            if (res.ok) {
+                const data = await res.json();
+                setAccounts(data.accounts || []);
+            }
+        } catch { /* silent */ }
+    }
+
+    async function switchAccount(email: string) {
+        try {
+            const res = await fetch('/api/auth/accounts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'switch', email }),
+            });
+            if (res.ok) onLoginSuccess(email);
+        } catch { /* silent */ }
+    }
+
+    async function removeAccount(email: string) {
+        try {
+            const res = await fetch('/api/auth/accounts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'remove', email }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.activeEmail) {
+                    onLoginSuccess(data.activeEmail);
+                } else {
+                    onLogout();
+                }
+            }
+        } catch { /* silent */ }
+    }
+
+    const initial = userEmail ? userEmail[0].toUpperCase() : '?';
+    const otherAccounts = accounts.filter(acc => acc !== userEmail);
+
+    if (!isLoggedIn) {
+        return (
+            <div className="bg-white/10 rounded-xl border border-white/15 p-4 flex flex-col gap-3">
+                <p className="text-white font-semibold text-sm">Iniciar sesión</p>
+                <p className="text-white/50 text-xs -mt-1">Accede con tu cuenta UCAM</p>
+                {/* LoginForm with overrides for dark background */}
+                <div className={loginFormNavyOverrides}>
+                    <LoginForm onLoginSuccess={onLoginSuccess} />
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex items-center justify-end w-full relative z-40 bg-[#0a0a0a] border-b border-[#00FF41]/30 px-4 py-3 lg:hidden sm:flex" style={{ display: 'none' }}>
+        <div className="flex flex-col gap-2">
+            {/* Active account chip */}
+            <div className="bg-white/10 rounded-xl border border-white/15 p-3 flex items-center gap-3">
+                <span className="h-9 w-9 bg-white rounded-full flex items-center flex-shrink-0 justify-center text-sm font-bold text-[#002855]">
+                    {initial}
+                </span>
+                <div className="overflow-hidden flex-1">
+                    <p className="text-white text-sm font-semibold truncate" title={userEmail || ''}>{userEmail}</p>
+                    <p className="text-white/50 text-xs flex items-center gap-1 mt-0.5">
+                        <span className="w-1.5 h-1.5 bg-[#4ADE80] rounded-full inline-block" />
+                        Sesión activa
+                    </p>
+                </div>
+            </div>
+
+            {/* Other accounts */}
+            {otherAccounts.length > 0 && (
+                <div className="flex flex-col gap-1">
+                    {otherAccounts.map(acc => (
+                        <div key={acc} className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 transition-colors">
+                            <span className="text-white/70 text-xs truncate max-w-[120px]">{acc}</span>
+                            <div className="flex gap-2 flex-shrink-0">
+                                <button type="button" onClick={() => switchAccount(acc)} className={btnMatteNavySmPrimary}>Usar</button>
+                                <button type="button" onClick={() => removeAccount(acc)} className={btnMatteNavySmDanger} aria-label="Eliminar cuenta">×</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Add account / logout */}
+            {isAdding ? (
+                <div className="bg-white/10 rounded-xl border border-white/15 p-3 flex flex-col gap-2">
+                    <p className="text-white/80 text-xs font-semibold uppercase tracking-wider">Nueva cuenta</p>
+                    <div className={loginFormNavyOverrides}>
+                        <LoginForm onLoginSuccess={(email) => { fetchAccounts(); setIsAdding(false); onLoginSuccess(email); }} />
+                    </div>
+                    <button type="button" onClick={() => setIsAdding(false)} className={`w-full ${btnMatteNavyPrimary}`}>Cancelar</button>
+                </div>
+            ) : (
+                <div className="flex gap-2">
+                    {accounts.length < 4 && (
+                        <button
+                            type="button"
+                            onClick={() => setIsAdding(true)}
+                            className={`flex-1 ${btnMatteNavyPrimary}`}
+                        >
+                            + Añadir cuenta
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={onLogout}
+                        className={`flex-1 ${btnMatteNavyDanger}`}
+                    >
+                        Cerrar sesión
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
 
-// AuthHeader for floating/inline usage
+// ─── Botón flotante para mobile (header) ────────────────────────────────────
 export function AuthHeader({ isLoggedIn, userEmail, onLoginSuccess, onLogout }: AuthNavBarProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
     const [accounts, setAccounts] = useState<string[]>([]);
-    const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
 
     const popoverRef = useRef<HTMLDivElement>(null);
-
-    const toggleOpen = () => setIsOpen(!isOpen);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -40,26 +173,18 @@ export function AuthHeader({ isLoggedIn, userEmail, onLoginSuccess, onLogout }: 
     }, []);
 
     useEffect(() => {
-        if (isOpen && isLoggedIn) {
-            fetchAccounts();
-        } else {
-            setIsAdding(false);
-        }
+        if (isOpen && isLoggedIn) fetchAccounts();
+        else setIsAdding(false);
     }, [isOpen, isLoggedIn, userEmail]);
 
     async function fetchAccounts() {
-        setIsLoadingAccounts(true);
         try {
             const res = await fetch('/api/auth/accounts');
             if (res.ok) {
                 const data = await res.json();
                 setAccounts(data.accounts || []);
             }
-        } catch (e) {
-            console.error('Failed to fetch accounts', e);
-        } finally {
-            setIsLoadingAccounts(false);
-        }
+        } catch { /* silent */ }
     }
 
     async function switchAccount(email: string) {
@@ -67,15 +192,10 @@ export function AuthHeader({ isLoggedIn, userEmail, onLoginSuccess, onLogout }: 
             const res = await fetch('/api/auth/accounts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'switch', email })
+                body: JSON.stringify({ action: 'switch', email }),
             });
-            if (res.ok) {
-                onLoginSuccess(email); // Update parent state
-                setIsOpen(false);
-            }
-        } catch (e) {
-            console.error('Failed to switch account', e);
-        }
+            if (res.ok) { onLoginSuccess(email); setIsOpen(false); }
+        } catch { /* silent */ }
     }
 
     async function removeAccount(email: string) {
@@ -83,125 +203,102 @@ export function AuthHeader({ isLoggedIn, userEmail, onLoginSuccess, onLogout }: 
             const res = await fetch('/api/auth/accounts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'remove', email })
+                body: JSON.stringify({ action: 'remove', email }),
             });
             if (res.ok) {
                 const data = await res.json();
                 if (data.activeEmail) {
-                    if (data.activeEmail !== userEmail) {
-                        onLoginSuccess(data.activeEmail);
-                    } else {
-                        fetchAccounts(); // just refresh list if we deleted a non-active
-                    }
+                    onLoginSuccess(data.activeEmail);
+                    fetchAccounts();
                 } else {
-                    onLogout(); // No accounts left
+                    onLogout();
                     setIsOpen(false);
                 }
             }
-        } catch (e) {
-            console.error('Failed to remove account', e);
-        }
+        } catch { /* silent */ }
     }
 
-    async function handleLogoutAll() {
-        onLogout();
-        setIsOpen(false);
-    }
-
-    async function handleLogoutCurrent() {
-        if (userEmail) {
-            await removeAccount(userEmail);
-        }
-    }
-
-    const initial = userEmail ? userEmail[0].toUpperCase() : '?';
+    const initial = userEmail ? userEmail[0].toUpperCase() : null;
     const otherAccounts = accounts.filter(acc => acc !== userEmail);
 
     return (
         <div className="relative" ref={popoverRef}>
             <button
-                onClick={toggleOpen}
-                className="flex items-center justify-center w-10 h-10 border border-[#00FF41]/40 hover:border-[#00FF41] bg-[#0a0a0a] hover:bg-[#00FF41]/10 focus:outline-none"
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center justify-center w-9 h-9 rounded-full overflow-hidden border-2 border-white/30 hover:border-white focus:outline-none transition-colors"
                 aria-label="Perfil de usuario"
             >
-                {isLoggedIn ? (
-                    <span className="h-full w-full bg-[#00FF41] flex items-center justify-center text-sm font-bold text-[#050505]">
+                {isLoggedIn && initial ? (
+                    <span className="h-full w-full bg-white flex items-center justify-center text-sm font-bold text-[#002855]">
                         {initial}
                     </span>
                 ) : (
-                    <span className="text-[#00FF41] text-lg">⊡</span>
+                    <span className="h-full w-full bg-white/15 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                    </span>
                 )}
             </button>
 
-            {/* Popover */}
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-[#0a0a0a] border border-[#00FF41] p-4 origin-top-right z-50 overflow-hidden shadow-[0_0_15px_rgba(0,255,65,0.2)]">
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl border border-[#E2E8F0] shadow-xl p-4 z-50">
                     {isLoggedIn ? (
                         <div className="flex flex-col gap-3">
-                            {/* Active Account */}
-                            <div className="flex items-center gap-3 border-b border-[#00FF41]/30 pb-3">
-                                <span className="h-10 w-10 bg-[#00FF41] flex items-center flex-shrink-0 justify-center text-lg font-bold text-[#050505]">
+                            {/* Active account */}
+                            <div className="flex items-center gap-3 border-b border-[#E2E8F0] pb-3">
+                                <span className="h-10 w-10 bg-[#002855] rounded-full flex items-center flex-shrink-0 justify-center font-bold text-white">
                                     {initial}
                                 </span>
                                 <div className="overflow-hidden">
-                                    <p className="text-[#00FF41] text-sm font-bold truncate" title={userEmail || ''}>{userEmail}</p>
-                                    <p className="text-[#00FF41]/60 text-xs font-semibold flex items-center gap-1">[OK] SESIÓN ACTIVA</p>
+                                    <p className="text-[#1E2940] text-sm font-semibold truncate">{userEmail}</p>
+                                    <p className="text-[#16A34A] text-xs font-medium flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 bg-[#16A34A] rounded-full inline-block" />
+                                        Sesión activa
+                                    </p>
                                 </div>
                             </div>
 
-                            {/* Other Accounts List */}
-                            {!isLoadingAccounts && otherAccounts.length > 0 && (
-                                <div className="flex flex-col gap-2 border-b border-[#00FF41]/30 pb-3">
-                                    <span className="text-[#00FF41]/60 text-xs font-bold">&gt; OTRAS_CUENTAS</span>
+                            {/* Other accounts */}
+                            {otherAccounts.length > 0 && (
+                                <div className="flex flex-col gap-1.5 border-b border-[#E2E8F0] pb-3">
+                                    <span className="text-[#64748B] text-xs font-semibold uppercase tracking-wider">Otras cuentas</span>
                                     {otherAccounts.map(acc => (
-                                        <div key={acc} className="flex items-center justify-between text-sm py-1 px-2 border border-[#00FF41]/10 hover:border-[#00FF41]/40 bg-[#050505]">
-                                            <span className="text-[#E0E0E0] text-xs truncate max-w-[130px]" title={acc}>{acc}</span>
+                                        <div key={acc} className="flex items-center justify-between px-3 py-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC]">
+                                            <span className="text-[#1E2940] text-xs truncate max-w-[150px]">{acc}</span>
                                             <div className="flex gap-2">
-                                                <button onClick={() => switchAccount(acc)} className="text-[#00FF41] hover:text-[#00FF41] hover:underline text-[10px] font-bold">SEL</button>
-                                                <button onClick={() => removeAccount(acc)} className="text-[#FF003C] hover:text-[#FF003C] hover:underline text-[10px] font-bold">DEL</button>
+                                                <button onClick={() => switchAccount(acc)} className="text-[#0057A8] hover:underline text-xs font-semibold">Usar</button>
+                                                <button onClick={() => removeAccount(acc)} className="text-[#DC2626] hover:underline text-xs font-semibold">×</button>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             )}
 
-                            {/* Add Account / Actions */}
+                            {/* Actions */}
                             {isAdding ? (
-                                <div className="border border-[#00FF41]/50 p-3 bg-[#00FF41]/5 mt-1">
-                                    <h3 className="text-xs font-bold text-[#00FF41] mb-2 tracking-wider">&gt; NUEVA_CUENTA</h3>
+                                <div className="border border-[#E2E8F0] rounded-xl p-3 bg-[#F8FAFC]">
+                                    <p className="text-xs font-semibold text-[#002855] mb-3 uppercase tracking-wider">Nueva cuenta</p>
                                     <LoginForm onLoginSuccess={(email) => {
                                         fetchAccounts();
                                         setIsAdding(false);
                                         onLoginSuccess(email);
                                     }} />
-                                    <button onClick={() => setIsAdding(false)} className="mt-2 text-xs text-[#FF003C] hover:underline w-full text-center font-bold">
-                                        [ CANCELAR ]
-                                    </button>
+                                    <button onClick={() => setIsAdding(false)} className="mt-2 text-xs text-[#64748B] hover:text-[#DC2626] w-full text-center py-1">Cancelar</button>
                                 </div>
                             ) : (
                                 <>
                                     {accounts.length < 4 && (
-                                        <button
-                                            onClick={() => setIsAdding(true)}
-                                            className="w-full text-xs text-[#00FF41] font-bold border border-[#00FF41]/40 py-2 hover:bg-[#00FF41]/10 tracking-widest"
-                                        >
-                                            + AÑADIR CUENTA
+                                        <button onClick={() => setIsAdding(true)} className="w-full text-xs text-[#002855] font-semibold border border-[#002855] bg-white hover:bg-[#002855] hover:text-white rounded-lg py-2 transition-colors">
+                                            + Añadir cuenta
                                         </button>
                                     )}
-                                    <div className="flex gap-2 pt-2">
-                                        <button
-                                            onClick={handleLogoutCurrent}
-                                            className="w-1/2 text-[10px] text-[#FF003C] font-bold bg-transparent hover:bg-[#FF003C]/10 border border-[#FF003C]/50 py-2 text-center"
-                                            title="Cerrar la cuenta actual"
-                                        >
-                                            [ LOGOUT CUR. ]
+                                    <div className="flex gap-2">
+                                        <button onClick={() => removeAccount(userEmail!)} className="flex-1 text-xs text-[#DC2626] font-semibold bg-white hover:bg-[#DC2626] hover:text-white border border-[#DC2626] rounded-lg py-2 transition-colors">
+                                            Cerrar esta sesión
                                         </button>
-                                        <button
-                                            onClick={handleLogoutAll}
-                                            className="w-1/2 text-[10px] text-[#050505] font-bold bg-[#FF003C] hover:bg-transparent hover:text-[#FF003C] border border-[#FF003C] py-2 text-center transition-colors"
-                                            title="Cerrar TODAS las cuentas"
-                                        >
-                                            [ LOGOUT ALL ]
+                                        <button onClick={() => { onLogout(); setIsOpen(false); }} className="flex-1 text-xs text-white font-semibold bg-[#DC2626] hover:bg-[#B91C1C] border border-[#DC2626] rounded-lg py-2 transition-colors">
+                                            Cerrar todas
                                         </button>
                                     </div>
                                 </>
@@ -209,13 +306,8 @@ export function AuthHeader({ isLoggedIn, userEmail, onLoginSuccess, onLogout }: 
                         </div>
                     ) : (
                         <div>
-                            <h2 className="text-[#00FF41] font-bold text-sm mb-3">&gt; INICIAR_SESIÓN</h2>
-                            <LoginForm
-                                onLoginSuccess={(email) => {
-                                    onLoginSuccess(email);
-                                    setIsOpen(false);
-                                }}
-                            />
+                            <h2 className="text-[#002855] font-bold text-sm mb-4">Iniciar sesión</h2>
+                            <LoginForm onLoginSuccess={(email) => { onLoginSuccess(email); setIsOpen(false); }} />
                         </div>
                     )}
                 </div>

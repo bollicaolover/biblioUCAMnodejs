@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Reservas Biblioteca UCAM',
-  description: 'Sistema de reserva de mesas para la Biblioteca de la UCAM. Visualiza la disponibilidad en tiempo real y reserva tu mesa.',
+  title: 'TakiSpot',
+  description: 'Reserva de mesas de biblioteca. Visualiza la disponibilidad en tiempo real y reserva tu mesa.',
 };
 
 export default function RootLayout({
@@ -16,9 +16,9 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="antialiased bg-[#050505] text-[#E0E0E0]">
+      <body className="antialiased bg-[#F2F5F9] text-[#1E2940]">
         {children}
       </body>
     </html>

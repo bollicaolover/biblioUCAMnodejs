@@ -1,69 +1,77 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+  --ucam-navy: #002855;
+  --ucam-blue: #0057A8;
+  --ucam-blue-hover: #004A8F;
+  --ucam-light-blue: #EEF4FB;
+  --ucam-bg: #F2F5F9;
+  --ucam-surface: #FFFFFF;
+  --ucam-text: #1E2940;
+  --ucam-text-muted: #64748B;
+  --ucam-border: #CBD5E1;
+  --ucam-border-light: #E2E8F0;
+  --ucam-green: #16A34A;
+  --ucam-orange: #D97706;
+  --ucam-red: #DC2626;
 }
 
 * {
   box-sizing: border-box;
-  border-radius: 0 !important;
-  font-family: 'VT323', monospace !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
 }
 
 body {
-  background-color: #050505;
-  color: #E0E0E0;
+  background-color: var(--ucam-bg);
+  color: var(--ucam-text);
 }
 
-/* ─── Terminal Scrollbar ─── */
+/* ─── Scrollbar UCAM ─── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: var(--ucam-border-light);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #00FF41;
+  background: var(--ucam-border);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #00cc34;
+  background: var(--ucam-text-muted);
 }
 
-/* ─── Global Cyberpunk Overrides ─── */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-button,
-label,
-nav,
-th {
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* ─── Glow effect utility ─── */
-.glow-green {
-  box-shadow: 0 0 8px #00FF41, 0 0 2px #00FF41;
-}
-
-/* ─── Transition override for machine-like snapping ─── */
-button,
-a,
-input,
-select,
-label {
-  transition: all 100ms linear !important;
-}
-
-/* ─── Select dropdown dark styling ─── */
+/* ─── Select dropdown styling ─── */
 select option {
-  background: #0a0a0a;
-  color: #E0E0E0;
+  background: var(--ucam-surface);
+  color: var(--ucam-text);
+}
+
+/* ─── Texto multicolor alternante (sidebar navy) ─── */
+@keyframes ucam-text-color-cycle {
+  0%,
+  100% {
+    color: #ffffff;
+  }
+  20% {
+    color: #93c5fd;
+  }
+  40% {
+    color: #4ade80;
+  }
+  60% {
+    color: #fcd34d;
+  }
+  80% {
+    color: #c4b5fd;
+  }
+}
+
+.ucam-alternating-char {
+  animation: ucam-text-color-cycle 4s ease-in-out infinite;
 }

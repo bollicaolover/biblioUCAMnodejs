@@ -3,12 +3,30 @@
 import { useState, useEffect } from 'react';
 import { LibraryMap } from '@/components/map/LibraryMap';
 import { AuthHeader } from '@/components/auth/AuthNavBar';
+import { SidebarUserPanel } from '@/components/auth/AuthNavBar';
 import { MyBookingsPanel } from '@/components/booking/MyBookingsPanel';
+
+function AlternatingColorText({ text }: { text: string }) {
+  return (
+    <span className="font-medium">
+      {text.split('').map((char, i) => (
+        <span
+          key={`${i}-${char}`}
+          className="ucam-alternating-char inline-block"
+          style={{ animationDelay: `-${(i * 0.18) % 4}s` }}
+        >
+          {char === ' ' ? '\u00A0' : char}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [bookingsRefreshTrigger, setBookingsRefreshTrigger] = useState(0);
 
   useEffect(() => {
     async function checkSession() {
@@ -48,51 +66,78 @@ export default function HomePage() {
 
   if (isInitializing) {
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center font-bold text-[#00FF41] tracking-widest text-sm">
-        <span className="animate-spin h-5 w-5 border-2 border-[#00FF41]/30 border-t-[#00FF41] mr-3" />
-        &gt; INICIALIZANDO_TRANCE...
+      <div className="min-h-screen bg-[#F2F5F9] flex items-center justify-center">
+        <div className="flex items-center gap-3 text-[#0057A8]">
+          <span className="animate-spin h-5 w-5 border-2 border-[#0057A8]/30 border-t-[#0057A8] rounded-full" />
+          <span className="text-sm font-medium text-[#64748B]">Cargando...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-[#E0E0E0] flex flex-col lg:flex-row relative">
+    <div className="min-h-screen bg-[#F2F5F9] text-[#1E2940] flex flex-col lg:flex-row relative">
       {/* Top Navbar for Mobile */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a] border-b border-[#00FF41] px-4 py-3 flex items-center justify-between lg:hidden">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#002855] px-4 py-3 flex items-center justify-center lg:hidden shadow-md">
         <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold text-[#00FF41] tracking-wider">&gt; RESERVAS_UCAM</h1>
+          <div className="w-7 h-7 bg-white rounded flex items-center justify-center">
+            <span className="text-[#002855] font-bold text-[10px] leading-none">67</span>
+          </div>
+          <h1 className="text-base font-semibold text-white tracking-wide">TakiSpot</h1>
         </div>
-        <AuthHeader
-          isLoggedIn={isLoggedIn}
-          userEmail={userEmail}
-          onLoginSuccess={handleLoginSuccess}
-          onLogout={handleLogout}
-        />
+        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+          <AuthHeader
+            isLoggedIn={isLoggedIn}
+            userEmail={userEmail}
+            onLoginSuccess={handleLoginSuccess}
+            onLogout={handleLogout}
+          />
+        </div>
       </header>
 
-      {/* Sidebar */}
-      <aside className="hidden lg:flex flex-col w-72 xl:w-80 bg-[#0a0a0a] border-r border-[#00FF41] flex-shrink-0 h-screen sticky top-0">
-        <div className="p-6 flex flex-col gap-6 h-full">
-          {/* Header */}
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl font-bold text-[#00FF41] tracking-wider">&gt; RESERVAS_UCAM</h1>
+      {/* Sidebar — desktop only */}
+      <aside className="hidden lg:flex flex-col w-72 xl:w-80 bg-[#002855] flex-shrink-0 h-screen sticky top-0 shadow-xl overflow-y-auto">
+        <div className="p-6 flex flex-col gap-5 h-full">
+          {/* Logo */}
+          <div className="border-b border-white/10 pb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                <span className="text-[#002855] font-bold text-sm leading-none">67</span>
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-white leading-tight">TakiSpot</h1>
+                <p className="text-white/50 text-xs font-medium">Biblioteca · TakeASpot</p>
+              </div>
             </div>
-            <p className="text-[#00FF41]/60 text-sm font-medium">BIBLIOTECA · TAKEASPOT</p>
           </div>
 
-          {/* Info */}
-          <div className="bg-transparent border border-[#00FF41]/40 p-4 text-xs text-[#00FF41] flex flex-col gap-2 mt-auto">
-            <p className="text-[#00FF41] font-bold text-xs uppercase tracking-wider">
-              &gt; LÍMITES_DEL_SISTEMA
-            </p>
-            <ul className="flex flex-col gap-1.5 mt-1 list-none font-medium text-[#E0E0E0]/80">
-              <li className="flex items-center gap-1.5"><span className="text-[#00FF41]">&gt;</span> Máximo 6 reservas/día</li>
-              <li className="flex items-center gap-1.5"><span className="text-[#00FF41]">&gt;</span> Día completo: antes de 10:30</li>
-              <li className="flex items-center gap-1.5"><span className="text-[#00FF41]">&gt;</span> Pasa el QR al entrar</li>
+          {/* User panel (login form or user info) */}
+          <SidebarUserPanel
+            isLoggedIn={isLoggedIn}
+            userEmail={userEmail}
+            onLoginSuccess={handleLoginSuccess}
+            onLogout={handleLogout}
+          />
+
+          {/* System limits */}
+          <div className="bg-white/5 rounded-xl border border-white/10 p-4 text-sm text-white/70 flex flex-col gap-2 mt-auto">
+            <p className="text-white font-semibold text-xs uppercase tracking-wider mb-1">Límites del sistema</p>
+            <ul className="flex flex-col gap-1.5 list-none font-normal">
+              <li className="flex items-start gap-2">
+                <span className="text-white/40 mt-0.5">•</span>
+                Máximo 6 reservas por día
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-white/40 mt-0.5">•</span>
+                Nota: si eres el francés no tienes derecho a reservar en esta app. aprende a usar la normal primero y deja de tocar las bolas.
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-white/40 mt-0.5">•</span>
+                Si queréis alguna funcionalidad nueva, decidmelo, la cosa es saber quien soy.
+              </li>
             </ul>
-            <div className="border-t border-[#00FF41]/30 mt-2 pt-2 text-[#00FF41]/50 font-medium">
-              v4.0 · UCAM_TERMINAL
+            <div className="border-t border-white/10 mt-2 pt-2 text-white/30 text-xs">
+              <AlternatingColorText text="v6.7 · G1904" />
             </div>
           </div>
         </div>
@@ -102,25 +147,21 @@ export default function HomePage() {
       <main className="flex-1 overflow-auto pt-16 lg:pt-0">
         <div className="p-4 lg:p-6 lg:pt-6">
           <div className="max-w-6xl mx-auto">
-            {/* Desktop Top Header */}
-            <div className="hidden lg:flex items-center justify-between mb-6 pb-2 border-b border-[#00FF41]/30">
-              <h2 className="text-2xl font-bold text-[#00FF41]">&gt; PANEL_PRINCIPAL</h2>
-              <AuthHeader
-                isLoggedIn={isLoggedIn}
-                userEmail={userEmail}
-                onLoginSuccess={handleLoginSuccess}
-                onLogout={handleLogout}
-              />
-            </div>
-
-            {/* Main panels wrapped with userEmail key to force remount on account switch */}
+            {/* Main panels */}
             <div key={userEmail || 'anonymous'}>
-              {/* Mis Reservas Panel (Moved here for mobile visibility) */}
               <div className="mb-8 w-full xl:max-w-2xl">
-                <MyBookingsPanel isLoggedIn={isLoggedIn} onSessionExpired={handleSessionExpired} />
+                <MyBookingsPanel
+                  isLoggedIn={isLoggedIn}
+                  onSessionExpired={handleSessionExpired}
+                  refreshTrigger={bookingsRefreshTrigger}
+                />
               </div>
 
-              <LibraryMap isLoggedIn={isLoggedIn} onSessionExpired={handleSessionExpired} />
+              <LibraryMap
+                isLoggedIn={isLoggedIn}
+                onSessionExpired={handleSessionExpired}
+                onBookingSuccess={() => setBookingsRefreshTrigger((n) => n + 1)}
+              />
             </div>
           </div>
         </div>

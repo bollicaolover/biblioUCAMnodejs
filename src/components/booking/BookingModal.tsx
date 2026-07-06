@@ -11,10 +11,9 @@ import type { MultiBookingItem } from '@/types/api';
 interface BookingModalProps {
     seat: SelectedSeat;
     isLoggedIn: boolean;
-    isFavorite: boolean;
-    onToggleFavorite: () => void;
     onClose: () => void;
     onSessionExpired: () => void;
+    onBookingSuccess?: () => void;
 }
 
 function formatDate(dateStr: string): string {
@@ -26,7 +25,7 @@ function todaySpain(): string {
     return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
 }
 
-export function BookingModal({ seat, isLoggedIn, isFavorite, onToggleFavorite, onClose, onSessionExpired }: BookingModalProps) {
+export function BookingModal({ seat, isLoggedIn, onClose, onSessionExpired, onBookingSuccess }: BookingModalProps) {
     const [availability, setAvailability] = useState<SeatAvailability | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -82,6 +81,8 @@ export function BookingModal({ seat, isLoggedIn, isFavorite, onToggleFavorite, o
             return acc;
         }, {} as Record<string, typeof selectedSlots>);
 
+        let hadSuccess = false;
+
         for (const [date, slots] of Object.entries(byDate)) {
             const dateKey = `${date}-selection`;
             setBookingStatus((prev) => ({ ...prev, [dateKey]: 'loading' }));
@@ -124,20 +125,22 @@ export function BookingModal({ seat, isLoggedIn, isFavorite, onToggleFavorite, o
                         if (json2.code === 422 && json2.error?.includes('Límite')) {
                             setBookingStatus((prev) => ({ ...prev, [dateKey]: `warning:${json2.error}` }));
                         } else {
-                            setBookingStatus((prev) => ({ ...prev, [dateKey]: `error:1ª ok, fallo multi: ${json2.error ?? ''}` }));
+                            setBookingStatus((prev) => ({ ...prev, [dateKey]: `error:1ª reserva ok, fallo en múltiple: ${json2.error ?? ''}` }));
                         }
                         continue;
                     }
                 }
 
                 setBookingStatus((prev) => ({ ...prev, [dateKey]: 'success' }));
+                hadSuccess = true;
             } catch {
-                setBookingStatus((prev) => ({ ...prev, [dateKey]: 'error:Error de red al reservar la selección.' }));
+                setBookingStatus((prev) => ({ ...prev, [dateKey]: 'error:Error de red al reservar.' }));
             }
         }
 
         setSelectedSlots([]);
         await loadSlots();
+        if (hadSuccess) onBookingSuccess?.();
     }
 
     function toggleSlot(date: string, start: string, end: string) {
@@ -153,29 +156,22 @@ export function BookingModal({ seat, isLoggedIn, isFavorite, onToggleFavorite, o
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
-            <div className="bg-[#0a0a0a] border border-[#00FF41] w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col relative">
+            <div className="bg-white rounded-2xl border border-[#E2E8F0] w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col relative shadow-2xl">
                 {/* Header */}
-                <div className="bg-[#050505] border-b border-[#00FF41] px-6 py-4 flex items-center justify-between flex-shrink-0">
+                <div className="bg-[#002855] px-6 py-4 flex items-center justify-between flex-shrink-0">
                     <div>
-                        <h2 className="text-[#00FF41] font-bold text-lg flex items-center gap-2">
-                            &gt; FILA_{seat.row} · MESA_{seat.seat}
+                        <h2 className="text-white font-bold text-base">
+                            Fila {seat.row} · Mesa {seat.seat}
                         </h2>
+                        <p className="text-white/50 text-xs mt-0.5">Selecciona los horarios para reservar</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={onToggleFavorite}
-                            className="text-[#FFD700] hover:scale-110 flex items-center justify-center p-1"
-                            title={isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"}
-                            aria-label={isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"}
-                        >
-                            <span className="text-xl">{isFavorite ? '★' : '☆'}</span>
-                        </button>
+                    <div className="flex items-center gap-2">
                         <button
                             onClick={onClose}
-                            className="text-[#FF003C] hover:text-[#FF003C] text-2xl leading-none"
+                            className="text-white/60 hover:text-white text-2xl leading-none p-1.5 rounded-lg hover:bg-white/10 transition-colors"
                             aria-label="Cerrar"
                         >
                             ×
@@ -184,39 +180,39 @@ export function BookingModal({ seat, isLoggedIn, isFavorite, onToggleFavorite, o
                 </div>
 
                 {/* Body */}
-                <div className="overflow-y-auto flex-1 p-6 pb-24">
+                <div className="overflow-y-auto flex-1 p-6 pb-24 bg-[#F8FAFC]">
                     {!isLoggedIn && (
-                        <div className="mb-4 bg-transparent border border-[#FFD700] px-4 py-3 text-[#FFD700] text-sm flex gap-2">
-                            <span className="flex-shrink-0">[!]</span>
-                            <span>INICIA SESIÓN PARA REALIZAR RESERVAS.</span>
+                        <div className="mb-4 bg-[#FFFBEB] border border-[#FDE68A] rounded-xl px-4 py-3 text-[#D97706] text-sm flex gap-2 items-start">
+                            <span className="flex-shrink-0 font-bold">!</span>
+                            <span>Inicia sesión para realizar reservas.</span>
                         </div>
                     )}
 
                     {isLoading && (
-                        <div className="flex items-center justify-center h-32 gap-3 text-[#00FF41]">
-                            <span className="h-5 w-5 border-2 border-[#00FF41]/30 border-t-[#00FF41] animate-spin" />
-                            CARGANDO DISPONIBILIDAD...
+                        <div className="flex items-center justify-center h-32 gap-3 text-[#64748B]">
+                            <span className="h-5 w-5 border-2 border-[#0057A8]/30 border-t-[#0057A8] animate-spin rounded-full" />
+                            <span className="text-sm">Cargando disponibilidad...</span>
                         </div>
                     )}
 
                     {error && !isLoading && (
-                        <div className="text-[#FF003C] bg-transparent border border-[#FF003C] px-4 py-3 text-sm flex gap-2">
-                            <span className="flex-shrink-0">[ERR]</span>
+                        <div className="text-[#DC2626] bg-[#FEF2F2] border border-[#FECACA] rounded-xl px-4 py-3 text-sm flex gap-2 items-start">
+                            <span className="flex-shrink-0 font-bold">!</span>
                             <span>{error}</span>
                         </div>
                     )}
 
                     {availability && !isLoading && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {Object.entries(availability).map(([date, slots]) => {
                                 const isToday = date === today;
                                 const hora = new Date().getHours() * 60 + new Date().getMinutes();
                                 const dateKey = `${date}-selection`;
 
                                 return (
-                                    <div key={date} className="bg-[#050505] border border-[#00FF41]/40 p-4">
-                                        <h3 className="text-[#00FF41] font-bold text-sm mb-3 capitalize border-b border-[#00FF41]/30 pb-2">
-                                            &gt; {formatDate(date)}
+                                    <div key={date} className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm">
+                                        <h3 className="text-[#002855] font-semibold text-sm mb-3 capitalize border-b border-[#E2E8F0] pb-2">
+                                            {formatDate(date)}
                                         </h3>
                                         <div className="flex flex-col gap-1 mb-2">
                                             {slots.map((slot) => {
@@ -226,8 +222,8 @@ export function BookingModal({ seat, isLoggedIn, isFavorite, onToggleFavorite, o
 
                                                 if (slot.estado === 'Reservado' || passed) {
                                                     return (
-                                                        <div key={slot.start} className="flex items-center gap-2 p-1.5 text-[#666666] line-through">
-                                                            <span className="font-mono text-sm">[-] {slot.start}–{slot.end}</span>
+                                                        <div key={slot.start} className="flex items-center gap-2 p-1.5 text-[#CBD5E1] line-through">
+                                                            <span className="text-sm">{slot.start}–{slot.end}</span>
                                                         </div>
                                                     );
                                                 }
@@ -237,15 +233,22 @@ export function BookingModal({ seat, isLoggedIn, isFavorite, onToggleFavorite, o
                                                         key={slot.start}
                                                         onClick={() => toggleSlot(date, slot.start, slot.end)}
                                                         disabled={!isSelected && selectedSlots.length >= 6}
-                                                        className={`flex items-center gap-2 p-1.5 text-left w-full cursor-pointer disabled:cursor-not-allowed disabled:opacity-50
+                                                        className={`flex items-center gap-2 p-1.5 text-left w-full rounded-lg cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 transition-colors
                                                             ${isSelected
-                                                                ? 'text-[#00FF41] bg-[#00FF41]/10 border border-[#00FF41]/30'
-                                                                : 'text-[#E0E0E0] hover:text-[#00FF41] hover:bg-[#00FF41]/5 border border-transparent'
+                                                                ? 'text-[#0057A8] bg-[#EEF4FB] border border-[#BFDBFE]'
+                                                                : 'text-[#1E2940] hover:text-[#0057A8] hover:bg-[#EEF4FB] border border-transparent'
                                                             }`}
                                                     >
-                                                        <span className="font-mono text-sm">
-                                                            {isSelected ? '[X]' : '[ ]'} {slot.start}–{slot.end}
+                                                        <span className="text-sm font-medium">
+                                                            {slot.start}–{slot.end}
                                                         </span>
+                                                        {isSelected && (
+                                                            <span className="ml-auto text-[#0057A8]">
+                                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                </svg>
+                                                            </span>
+                                                        )}
                                                     </button>
                                                 );
                                             })}
@@ -254,22 +257,22 @@ export function BookingModal({ seat, isLoggedIn, isFavorite, onToggleFavorite, o
                                         {bookingStatus[dateKey] && (
                                             <div className="mt-3">
                                                 {bookingStatus[dateKey].startsWith('error:') && (
-                                                    <p className="text-[#FF003C] text-xs font-medium flex items-center gap-1">
-                                                        [ERR] <span>{bookingStatus[dateKey].replace('error:', '')}</span>
+                                                    <p className="text-[#DC2626] text-xs font-medium bg-[#FEF2F2] rounded-lg px-2 py-1.5">
+                                                        {bookingStatus[dateKey].replace('error:', '')}
                                                     </p>
                                                 )}
                                                 {bookingStatus[dateKey].startsWith('warning:') && (
-                                                    <p className="text-[#FFD700] text-xs font-medium flex items-center gap-1">
-                                                        [!] <span>{bookingStatus[dateKey].replace('warning:', '')}</span>
+                                                    <p className="text-[#D97706] text-xs font-medium bg-[#FFFBEB] rounded-lg px-2 py-1.5">
+                                                        {bookingStatus[dateKey].replace('warning:', '')}
                                                     </p>
                                                 )}
                                                 {bookingStatus[dateKey] === 'success' && (
-                                                    <p className="text-[#00FF41] text-xs font-medium flex items-center gap-1">
-                                                        [OK] <span>RESERVAS CONFIRMADAS</span>
+                                                    <p className="text-[#16A34A] text-xs font-medium bg-[#F0FDF4] rounded-lg px-2 py-1.5">
+                                                        ✓ Reservas confirmadas
                                                     </p>
                                                 )}
                                                 {bookingStatus[dateKey] === 'loading' && (
-                                                    <p className="text-[#00FF41] text-xs font-medium animate-pulse">[...] PROCESANDO...</p>
+                                                    <p className="text-[#64748B] text-xs font-medium animate-pulse px-2 py-1.5">Procesando...</p>
                                                 )}
                                             </div>
                                         )}
@@ -280,20 +283,20 @@ export function BookingModal({ seat, isLoggedIn, isFavorite, onToggleFavorite, o
                     )}
                 </div>
 
-                {/* Floating Bottom Bar for Multi-select */}
+                {/* Floating Bottom Bar */}
                 {selectedSlots.length > 0 && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-[#0a0a0a] border-t border-[#00FF41] p-4 px-6 flex items-center justify-between">
+                    <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] p-4 px-6 flex items-center justify-between shadow-lg">
                         <div>
-                            <p className="text-[#00FF41] font-bold">
-                                {selectedSlots.length} HORA{selectedSlots.length > 1 ? 'S' : ''} SELECCIONADA{selectedSlots.length > 1 ? 'S' : ''}
+                            <p className="text-[#002855] font-semibold text-sm">
+                                {selectedSlots.length} hora{selectedSlots.length > 1 ? 's' : ''} seleccionada{selectedSlots.length > 1 ? 's' : ''}
                             </p>
-                            <p className="text-xs text-[#E0E0E0]/50 font-medium">MÁXIMO 6 PERMITIDAS.</p>
+                            <p className="text-xs text-[#64748B]">Máximo 6 permitidas</p>
                         </div>
                         <button
                             onClick={handleBookSelection}
-                            className="bg-transparent border border-[#00FF41] text-[#00FF41] hover:bg-[#00FF41] hover:text-[#050505] px-6 py-2.5 font-bold glow-green flex items-center gap-2 disabled:opacity-50"
+                            className="bg-[#0057A8] hover:bg-[#004A8F] text-white px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors shadow-sm"
                         >
-                            [ RESERVAR ]
+                            Confirmar reserva
                         </button>
                     </div>
                 )}
