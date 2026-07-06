@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { MyBooking } from '@/lib/takeaspot/api';
 import { canCheckin, mergeBookedAt } from '@/lib/booking/checkin';
 import { partitionBookings } from '@/lib/booking/bookingsDisplay';
+import { trackBookingCancelled, trackCheckIn } from '@/lib/analytics/events';
 
 interface MyBookingsPanelProps {
     isLoggedIn: boolean;
@@ -68,6 +69,7 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired, refreshTrigger =
                 return;
             }
             setActionStatus((prev) => ({ ...prev, [bookingId]: 'done' }));
+            trackBookingCancelled();
             loadBookings();
         } catch {
             setActionStatus((prev) => ({ ...prev, [bookingId]: 'error' }));
@@ -90,6 +92,7 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired, refreshTrigger =
                 return;
             }
             setActionStatus((prev) => ({ ...prev, [bookingId]: 'checkin_done' }));
+            trackCheckIn();
             loadBookings();
         } catch {
             alert('Error de red al confirmar reserva.');

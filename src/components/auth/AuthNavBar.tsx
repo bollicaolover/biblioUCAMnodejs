@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { LoginForm } from '@/components/auth/LoginForm';
+import { trackAccountSwitch } from '@/lib/analytics/events';
 
 interface AuthNavBarProps {
     isLoggedIn: boolean;
@@ -49,7 +50,10 @@ export function SidebarUserPanel({ isLoggedIn, userEmail, onLoginSuccess, onLogo
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'switch', email }),
             });
-            if (res.ok) onLoginSuccess(email);
+            if (res.ok) {
+                trackAccountSwitch();
+                onLoginSuccess(email);
+            }
         } catch { /* silent */ }
     }
 
@@ -63,6 +67,7 @@ export function SidebarUserPanel({ isLoggedIn, userEmail, onLoginSuccess, onLogo
             if (res.ok) {
                 const data = await res.json();
                 if (data.activeEmail) {
+                    trackAccountSwitch();
                     onLoginSuccess(data.activeEmail);
                 } else {
                     onLogout();
@@ -189,7 +194,11 @@ export function AuthHeader({ isLoggedIn, userEmail, onLoginSuccess, onLogout }: 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'switch', email }),
             });
-            if (res.ok) { onLoginSuccess(email); setIsOpen(false); }
+            if (res.ok) {
+                trackAccountSwitch();
+                onLoginSuccess(email);
+                setIsOpen(false);
+            }
         } catch { /* silent */ }
     }
 
@@ -203,6 +212,7 @@ export function AuthHeader({ isLoggedIn, userEmail, onLoginSuccess, onLogout }: 
             if (res.ok) {
                 const data = await res.json();
                 if (data.activeEmail) {
+                    trackAccountSwitch();
                     onLoginSuccess(data.activeEmail);
                     fetchAccounts();
                 } else {

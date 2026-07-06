@@ -8,6 +8,7 @@ import type { SlotsApiResponse, SlotTimeFrame, SlotFreeItem } from '@/types/api'
 import { LIBRARY_SERVICE_ID } from '@/lib/constants/schedules';
 import type { MultiBookingItem } from '@/types/api';
 import { recordBookingCheckinAnchor } from '@/lib/booking/checkin';
+import { trackBookingCreated } from '@/lib/analytics/events';
 
 interface BookingModalProps {
     seat: SelectedSeat;
@@ -83,6 +84,8 @@ export function BookingModal({ seat, isLoggedIn, onClose, onSessionExpired, onBo
         }, {} as Record<string, typeof selectedSlots>);
 
         let hadSuccess = false;
+        let totalSlotsCreated = 0;
+        let successDatesCount = 0;
 
         for (const [date, slots] of Object.entries(byDate)) {
             const dateKey = `${date}-selection`;
@@ -140,6 +143,8 @@ export function BookingModal({ seat, isLoggedIn, onClose, onSessionExpired, onBo
 
                 recordBookingCheckinAnchor(createdIds);
                 setBookingStatus((prev) => ({ ...prev, [dateKey]: 'success' }));
+                totalSlotsCreated += createdIds.length;
+                successDatesCount += 1;
                 hadSuccess = true;
             } catch {
                 setBookingStatus((prev) => ({ ...prev, [dateKey]: 'error:Error de red al reservar.' }));
@@ -148,7 +153,14 @@ export function BookingModal({ seat, isLoggedIn, onClose, onSessionExpired, onBo
 
         setSelectedSlots([]);
         await loadSlots();
-        if (hadSuccess) onBookingSuccess?.();
+        if (hadSuccess) {
+            trackBookingCreated({
+                pitchId: seat.pitchId,
+                slotsCount: totalSlotsCreated,
+                datesCount: successDatesCount,
+            });
+            onBookingSuccess?.();
+        }
     }
 
     function toggleSlot(date: string, start: string, end: string) {

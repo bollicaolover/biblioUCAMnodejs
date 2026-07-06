@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { trackLogin, trackLoginFailed } from '@/lib/analytics/events';
 
 const TAKEASPOT_RESET_URL = 'https://app.takeaspot.net/password/reset';
 
@@ -81,11 +82,20 @@ export function LoginForm({ onLoginSuccess, theme = 'light' }: LoginFormProps) {
             const data = await res.json() as { ok: boolean; error?: string; email?: string };
 
             if (data.ok && data.email) {
+                trackLogin();
                 onLoginSuccess(data.email);
             } else {
+                const reason =
+                    res.status === 429
+                        ? 'rate_limit'
+                        : res.status === 401
+                          ? 'invalid_credentials'
+                          : 'api_error';
+                trackLoginFailed(reason);
                 setError(data.error ?? 'Error al iniciar sesión.');
             }
         } catch {
+            trackLoginFailed('network');
             setError('Error de red. Verifica tu conexión.');
         } finally {
             setIsLoading(false);

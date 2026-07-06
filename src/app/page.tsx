@@ -5,6 +5,7 @@ import { LibraryMap } from '@/components/map/LibraryMap';
 import { AuthHeader } from '@/components/auth/AuthNavBar';
 import { SidebarUserPanel } from '@/components/auth/AuthNavBar';
 import { MyBookingsPanel } from '@/components/booking/MyBookingsPanel';
+import { trackLogout, trackSessionExpired } from '@/lib/analytics/events';
 
 function AlternatingColorText({ text }: { text: string }) {
   return (
@@ -63,11 +64,13 @@ export default function HomePage() {
 
   async function handleLogout() {
     await fetch('/api/auth/login', { method: 'DELETE' });
+    trackLogout();
     setIsLoggedIn(false);
     setUserEmail(null);
   }
 
   function handleSessionExpired() {
+    trackSessionExpired();
     setIsLoggedIn(false);
     setUserEmail(null);
   }

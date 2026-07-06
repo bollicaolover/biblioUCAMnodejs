@@ -9,6 +9,7 @@ import { BookingSuccessToast } from '@/components/ui/BookingSuccessToast';
 import { useAnimatedNumber } from '@/hooks/useAnimatedNumber';
 import type { MapSeat, SelectedSeat, SeatStatus } from '@/types/ui';
 import type { SlotsApiResponse, SlotTimeFrame, SlotFreeItem } from '@/types/api';
+import { trackSelectSeat } from '@/lib/analytics/events';
 
 interface LibraryMapProps {
     isLoggedIn: boolean;
@@ -382,7 +383,10 @@ export function LibraryMap({ isLoggedIn, onSessionExpired, onBookingSuccess }: L
                                 key={seat.pitchId}
                                 seat={seat}
                                 pulse={pulsePitchId === seat.pitchId}
-                                onClick={s => setSelectedSeat({ row: s.row, seat: s.seat, pitchId: s.pitchId })}
+                                onClick={s => {
+                                    trackSelectSeat(s.pitchId);
+                                    setSelectedSeat({ row: s.row, seat: s.seat, pitchId: s.pitchId });
+                                }}
                             />
                         ))}
                     </div>
