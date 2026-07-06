@@ -285,7 +285,7 @@ export function BookingModal({ seat, isLoggedIn, isFavorite, onToggleFavorite, o
                     <div className="absolute bottom-0 left-0 right-0 bg-[#0a0a0a] border-t border-[#00FF41] p-4 px-6 flex items-center justify-between">
                         <div>
                             <p className="text-[#00FF41] font-bold">
-                                {selectedSlots.length} FRANJA{selectedSlots.length > 1 ? 'S' : ''} SELECCIONADA{selectedSlots.length > 1 ? 'S' : ''}
+                                {selectedSlots.length} HORA{selectedSlots.length > 1 ? 'S' : ''} SELECCIONADA{selectedSlots.length > 1 ? 'S' : ''}
                             </p>
                             <p className="text-xs text-[#E0E0E0]/50 font-medium">MÁXIMO 6 PERMITIDAS.</p>
                         </div>
