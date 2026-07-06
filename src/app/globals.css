@@ -46,6 +46,18 @@ body {
   background: var(--ucam-text-muted);
 }
 
+/* Ocultar scrollbar horizontal (filtros de fecha) */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
 /* ─── Select dropdown styling ─── */
 select option {
   background: var(--ucam-surface);
@@ -74,4 +86,339 @@ select option {
 
 .ucam-alternating-char {
   animation: ucam-text-color-cycle 4s ease-in-out infinite;
+}
+
+/* ─── Formulario / acciones (paleta unificada: navy primario) ─── */
+.ucam-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ucam-navy);
+}
+
+.ucam-input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--ucam-border);
+  background-color: var(--ucam-surface);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--ucam-text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ucam-input::placeholder {
+  color: #94a3b8;
+}
+
+.ucam-input:focus {
+  outline: none;
+  border-color: var(--ucam-navy);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ucam-navy) 18%, transparent);
+}
+
+.ucam-input:-webkit-autofill,
+.ucam-input:-webkit-autofill:hover,
+.ucam-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--ucam-surface) inset;
+  -webkit-text-fill-color: var(--ucam-text);
+  border-color: var(--ucam-border);
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.ucam-input:-webkit-autofill:focus {
+  border-color: var(--ucam-navy);
+  -webkit-box-shadow: 0 0 0 1000px var(--ucam-surface) inset,
+    0 0 0 2px color-mix(in srgb, var(--ucam-navy) 18%, transparent);
+}
+
+.ucam-btn-primary {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--ucam-navy);
+  background-color: var(--ucam-surface);
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ucam-navy);
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.ucam-btn-primary:hover:not(:disabled) {
+  background-color: var(--ucam-navy);
+  border-color: var(--ucam-navy);
+  color: #fff;
+}
+
+.ucam-btn-primary:disabled {
+  border-color: var(--ucam-border);
+  background-color: var(--ucam-surface);
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ucam-link {
+  color: var(--ucam-navy);
+  font-weight: 600;
+}
+
+.ucam-link:hover {
+  text-decoration: underline;
+}
+
+.ucam-help-btn {
+  display: flex;
+  height: 1rem;
+  width: 1rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid var(--ucam-border);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ucam-text-muted);
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.ucam-help-btn:hover {
+  border-color: var(--ucam-navy);
+  color: var(--ucam-navy);
+}
+
+/* Login sobre fondo navy (sidebar) */
+.login-form-dark .ucam-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.login-form-dark .ucam-input {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.login-form-dark .ucam-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.login-form-dark .ucam-input:focus {
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+.login-form-dark .ucam-input:-webkit-autofill,
+.login-form-dark .ucam-input:-webkit-autofill:hover,
+.login-form-dark .ucam-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.1) inset;
+  -webkit-text-fill-color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.login-form-dark .ucam-help-btn {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.login-form-dark .ucam-help-btn:hover {
+  border-color: #fff;
+  color: #fff;
+}
+
+.login-form-dark .ucam-btn-primary {
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background-color: transparent;
+  color: #fff;
+}
+
+.login-form-dark .ucam-btn-primary:hover:not(:disabled) {
+  background-color: #fff;
+  border-color: #fff;
+  color: var(--ucam-navy);
+}
+
+.login-form-dark .ucam-btn-primary:disabled {
+  border-color: rgba(255, 255, 255, 0.25);
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  opacity: 1;
+}
+
+/* ─── Skeleton / shimmer ─── */
+@keyframes ucam-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.ucam-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--ucam-border-light) 0%,
+    #f8fafc 45%,
+    var(--ucam-border-light) 90%
+  );
+  background-size: 200% 100%;
+  animation: ucam-shimmer 1.4s ease-in-out infinite;
+}
+
+.ucam-shimmer--green {
+  background: linear-gradient(90deg, #bbf7d0 0%, #f0fdf4 45%, #bbf7d0 90%);
+  background-size: 200% 100%;
+  animation: ucam-shimmer 1.4s ease-in-out infinite;
+}
+
+.ucam-shimmer--orange {
+  background: linear-gradient(90deg, #fed7aa 0%, #fffbeb 45%, #fed7aa 90%);
+  background-size: 200% 100%;
+  animation: ucam-shimmer 1.4s ease-in-out infinite;
+}
+
+.ucam-shimmer--red {
+  background: linear-gradient(90deg, #fecaca 0%, #fef2f2 45%, #fecaca 90%);
+  background-size: 200% 100%;
+  animation: ucam-shimmer 1.4s ease-in-out infinite;
+}
+
+/* ─── Map / booking micro-interactions ─── */
+@keyframes seat-pulse-green {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 10px rgba(22, 163, 74, 0);
+    background-color: #16a34a;
+    color: #fff;
+    border-color: #16a34a;
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
+  }
+}
+
+.seat-pulse-success {
+  animation: seat-pulse-green 0.4s ease-out 1;
+}
+
+.seat-tap {
+  transition: transform 0.12s ease, background-color 0.15s ease, color 0.15s ease, box-shadow 0.12s ease, border-color 0.15s ease;
+}
+
+@keyframes map-row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.map-row-enter {
+  animation: map-row-enter 0.35s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes stat-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.stat-pop {
+  animation: stat-pop 0.25s ease-out;
+  display: inline-block;
+  transform-origin: center center;
+}
+
+.date-pill-indicator {
+  transition: transform 0.25s ease-out, width 0.25s ease-out;
+}
+
+.crossfade-skeleton {
+  transition: opacity 150ms ease-out;
+}
+
+.crossfade-content {
+  transition: opacity 200ms ease-out;
+}
+
+.sticky-header-shadow {
+  box-shadow: 0 4px 16px rgba(0, 40, 85, 0.1);
+  transition: box-shadow 200ms ease-out;
+}
+
+.accordion-panel {
+  display: grid;
+  transition: grid-template-rows 300ms ease-out;
+}
+
+.accordion-panel--closed {
+  grid-template-rows: 0fr;
+}
+
+.accordion-panel--open {
+  grid-template-rows: 1fr;
+}
+
+.accordion-chevron {
+  transition: transform 300ms ease-out;
+}
+
+.accordion-chevron--open {
+  transform: rotate(180deg);
+}
+
+.booking-toast {
+  transform: translateY(1.5rem);
+  opacity: 0;
+  transition: transform 0.3s ease-out, opacity 0.25s ease-out;
+}
+
+.booking-toast--visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.booking-toast-check {
+  animation: toast-check-pop 0.45s ease-out 0.12s both;
+}
+
+.booking-toast-check-path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: toast-check-draw 0.35s ease-out 0.25s forwards;
+}
+
+@keyframes toast-check-pop {
+  0% {
+    transform: scale(0);
+  }
+  55% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes toast-check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
 }

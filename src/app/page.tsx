@@ -22,6 +22,14 @@ function AlternatingColorText({ text }: { text: string }) {
   );
 }
 
+function MadeByCredit({ className = '' }: { className?: string }) {
+  return (
+    <p className={className}>
+      Hecho por <span className="font-semibold">G1904</span>
+    </p>
+  );
+}
+
 export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -67,8 +75,8 @@ export default function HomePage() {
   if (isInitializing) {
     return (
       <div className="min-h-screen bg-[#F2F5F9] flex items-center justify-center">
-        <div className="flex items-center gap-3 text-[#0057A8]">
-          <span className="animate-spin h-5 w-5 border-2 border-[#0057A8]/30 border-t-[#0057A8] rounded-full" />
+        <div className="flex items-center gap-3 text-[#002855]">
+          <span className="animate-spin h-5 w-5 border-2 border-[#002855]/30 border-t-[#002855] rounded-full" />
           <span className="text-sm font-medium text-[#64748B]">Cargando...</span>
         </div>
       </div>
@@ -136,8 +144,9 @@ export default function HomePage() {
                 Si queréis alguna funcionalidad nueva, decidmelo, la cosa es saber quien soy.
               </li>
             </ul>
-            <div className="border-t border-white/10 mt-2 pt-2 text-white/30 text-xs">
-              <AlternatingColorText text="v6.7 · G1904" />
+            <div className="border-t border-white/10 mt-2 pt-2 text-white/30 text-xs flex flex-col gap-1.5">
+              <MadeByCredit className="text-white/40" />
+              <AlternatingColorText text="v6.7" />
             </div>
           </div>
         </div>
@@ -162,6 +171,10 @@ export default function HomePage() {
                 onSessionExpired={handleSessionExpired}
                 onBookingSuccess={() => setBookingsRefreshTrigger((n) => n + 1)}
               />
+
+              <footer className="lg:hidden mt-10 pb-2 text-center text-xs text-[#94A3B8]">
+                <MadeByCredit />
+              </footer>
             </div>
           </div>
         </div>

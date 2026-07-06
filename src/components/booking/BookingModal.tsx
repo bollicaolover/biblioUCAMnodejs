@@ -7,6 +7,7 @@ import { getPitchIndex } from '@/lib/constants/seats';
 import type { SlotsApiResponse, SlotTimeFrame, SlotFreeItem } from '@/types/api';
 import { LIBRARY_SERVICE_ID } from '@/lib/constants/schedules';
 import type { MultiBookingItem } from '@/types/api';
+import { recordBookingCheckinAnchor } from '@/lib/booking/checkin';
 
 interface BookingModalProps {
     seat: SelectedSeat;
@@ -103,6 +104,7 @@ export function BookingModal({ seat, isLoggedIn, onClose, onSessionExpired, onBo
                 }
 
                 const mainBookingId = json1.data.bookingId;
+                const createdIds = [mainBookingId];
 
                 if (rest.length > 0) {
                     const items: MultiBookingItem[] = rest.map((s) => ({
@@ -118,7 +120,7 @@ export function BookingModal({ seat, isLoggedIn, onClose, onSessionExpired, onBo
                         body: JSON.stringify({ bookingId: mainBookingId, items }),
                     });
 
-                    const json2 = await res2.json() as { ok: boolean; error?: string; code?: number };
+                    const json2 = await res2.json() as { ok: boolean; data?: { bookingIds?: string[] }; error?: string; code?: number };
 
                     if (!json2.ok) {
                         if (json2.code === 401) { onSessionExpired(); return; }
@@ -127,10 +129,16 @@ export function BookingModal({ seat, isLoggedIn, onClose, onSessionExpired, onBo
                         } else {
                             setBookingStatus((prev) => ({ ...prev, [dateKey]: `error:1ª reserva ok, fallo en múltiple: ${json2.error ?? ''}` }));
                         }
+                        recordBookingCheckinAnchor(createdIds);
                         continue;
+                    }
+
+                    if (json2.data?.bookingIds?.length) {
+                        createdIds.push(...json2.data.bookingIds);
                     }
                 }
 
+                recordBookingCheckinAnchor(createdIds);
                 setBookingStatus((prev) => ({ ...prev, [dateKey]: 'success' }));
                 hadSuccess = true;
             } catch {
@@ -190,7 +198,7 @@ export function BookingModal({ seat, isLoggedIn, onClose, onSessionExpired, onBo
 
                     {isLoading && (
                         <div className="flex items-center justify-center h-32 gap-3 text-[#64748B]">
-                            <span className="h-5 w-5 border-2 border-[#0057A8]/30 border-t-[#0057A8] animate-spin rounded-full" />
+                            <span className="h-5 w-5 border-2 border-white/30 border-t-white animate-spin rounded-full" />
                             <span className="text-sm">Cargando disponibilidad...</span>
                         </div>
                     )}
@@ -235,15 +243,15 @@ export function BookingModal({ seat, isLoggedIn, onClose, onSessionExpired, onBo
                                                         disabled={!isSelected && selectedSlots.length >= 6}
                                                         className={`flex items-center gap-2 p-1.5 text-left w-full rounded-lg cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 transition-colors
                                                             ${isSelected
-                                                                ? 'text-[#0057A8] bg-[#EEF4FB] border border-[#BFDBFE]'
-                                                                : 'text-[#1E2940] hover:text-[#0057A8] hover:bg-[#EEF4FB] border border-transparent'
+                                                                ? 'text-[#002855] bg-[#EEF4FB] border border-[#CBD5E1]'
+                                                                : 'text-[#1E2940] hover:text-[#002855] hover:bg-[#EEF4FB] border border-transparent'
                                                             }`}
                                                     >
                                                         <span className="text-sm font-medium">
                                                             {slot.start}–{slot.end}
                                                         </span>
                                                         {isSelected && (
-                                                            <span className="ml-auto text-[#0057A8]">
+                                                            <span className="ml-auto text-[#002855]">
                                                                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                                                 </svg>
@@ -294,7 +302,7 @@ export function BookingModal({ seat, isLoggedIn, onClose, onSessionExpired, onBo
                         </div>
                         <button
                             onClick={handleBookSelection}
-                            className="bg-[#0057A8] hover:bg-[#004A8F] text-white px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors shadow-sm"
+                            className="bg-[#002855] hover:bg-[#004A8F] text-white px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors shadow-sm"
                         >
                             Confirmar reserva
                         </button>

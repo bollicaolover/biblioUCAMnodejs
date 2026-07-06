@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { SEATS } from '@/lib/constants/seats';
 import { LIBRARY_SERVICE_ID } from '@/lib/constants/schedules';
 import { BookingModal } from '@/components/booking/BookingModal';
+import { MapGridSkeleton } from '@/components/map/MapSkeleton';
+import { BookingSuccessToast } from '@/components/ui/BookingSuccessToast';
+import { useAnimatedNumber } from '@/hooks/useAnimatedNumber';
 import type { MapSeat, SelectedSeat, SeatStatus } from '@/types/ui';
 import type { SlotsApiResponse, SlotTimeFrame, SlotFreeItem } from '@/types/api';
 
@@ -64,9 +67,101 @@ function formatDateTab(dateStr: string): { short: string; full: string } {
     return { short: short.charAt(0).toUpperCase() + short.slice(1), full };
 }
 
+function StatFilterButton({
+    label,
+    value,
+    color,
+    active,
+    onToggle,
+    bumpKey,
+}: {
+    label: string;
+    value: number;
+    color: string;
+    active: boolean;
+    onToggle: () => void;
+    bumpKey: string;
+}) {
+    const animated = useAnimatedNumber(value, 320);
+
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            className="min-w-0 overflow-hidden rounded-xl px-2 py-2 sm:py-3 text-center shadow-sm border transition-[color,background-color,border-color,transform,box-shadow] duration-200 cursor-pointer active:scale-[0.98]"
+            style={active
+                ? { backgroundColor: color, borderColor: color, color: 'white' }
+                : { backgroundColor: 'white', borderColor: color, color }}
+        >
+            <p key={bumpKey} className="text-lg sm:text-xl font-bold stat-pop">{animated}</p>
+            <p className="text-[10px] sm:text-xs font-medium mt-0.5 truncate">{label}</p>
+        </button>
+    );
+}
+
+function DateTabs({
+    dates,
+    selectedDate,
+    onSelect,
+}: {
+    dates: string[];
+    selectedDate: string;
+    onSelect: (date: string) => void;
+}) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+    const [pill, setPill] = useState({ left: 0, width: 0 });
+
+    useEffect(() => {
+        function updatePill() {
+            const el = tabRefs.current[selectedDate];
+            const container = containerRef.current;
+            if (!el || !container) return;
+            setPill({ left: el.offsetLeft, width: el.offsetWidth });
+        }
+        updatePill();
+        const frame = requestAnimationFrame(updatePill);
+        window.addEventListener('resize', updatePill);
+        return () => {
+            cancelAnimationFrame(frame);
+            window.removeEventListener('resize', updatePill);
+        };
+    }, [selectedDate, dates]);
+
+    return (
+        <div className="overflow-x-auto scrollbar-none">
+            <div ref={containerRef} className="relative flex gap-2 w-max min-w-full">
+                <div
+                    className="date-pill-indicator absolute top-0 bottom-0 rounded-full bg-[#002855] pointer-events-none"
+                    style={{ transform: `translateX(${pill.left}px)`, width: pill.width }}
+                    aria-hidden
+                />
+            {dates.map((date) => {
+                const { short, full } = formatDateTab(date);
+                const isSelected = date === selectedDate;
+                return (
+                    <button
+                        key={date}
+                        ref={(el) => { tabRefs.current[date] = el; }}
+                        type="button"
+                        onClick={() => onSelect(date)}
+                        title={full}
+                        className={`relative z-10 flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors duration-200 ${isSelected ? 'text-white' : 'text-[#64748B] hover:text-[#002855]'}`}
+                    >
+                        {short}
+                    </button>
+                );
+            })}
+            </div>
+        </div>
+    );
+}
+
 export function LibraryMap({ isLoggedIn, onSessionExpired, onBookingSuccess }: LibraryMapProps) {
     const [freeslots, setFreeslots] = useState<FreeslotsData>({});
     const [availability, setAvailability] = useState<AvailabilityMap>({});
+    const [hasLoaded, setHasLoaded] = useState(false);
+    const [isDateSwitching, setIsDateSwitching] = useState(false);
     const [selectedSeat, setSelectedSeat] = useState<SelectedSeat | null>(null);
     const [stats, setStats] = useState({ total: 0, available: 0, partially: 0, occupied: 0 });
     const [selectedDate, setSelectedDate] = useState<string>(todaySpain());
@@ -74,6 +169,18 @@ export function LibraryMap({ isLoggedIn, onSessionExpired, onBookingSuccess }: L
     const [showPartial, setShowPartial] = useState(false);
     const [showOccupied, setShowOccupied] = useState(false);
     const [selectedRow, setSelectedRow] = useState<string>('all');
+    const [pulsePitchId, setPulsePitchId] = useState<string | null>(null);
+    const [mapRowsKey, setMapRowsKey] = useState(0);
+    const [headerScrolled, setHeaderScrolled] = useState(false);
+    const [showSuccessToast, setShowSuccessToast] = useState(false);
+    const [successToastId, setSuccessToastId] = useState(0);
+    const scrollSentinelRef = useRef<HTMLDivElement>(null);
+    const selectedDateRef = useRef(selectedDate);
+    const dateSwitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    selectedDateRef.current = selectedDate;
+
+    const showMapSkeleton = !hasLoaded || isDateSwitching;
 
     const recomputeAvailability = useCallback((data: FreeslotsData, date: string) => {
         const newAvailability: AvailabilityMap = {};
@@ -97,27 +204,67 @@ export function LibraryMap({ isLoggedIn, onSessionExpired, onBookingSuccess }: L
         setStats({ total: tot, available: av, partially: pa, occupied: oc });
     }, []);
 
-    const loadAvailability = useCallback(async () => {
+    const loadAvailability = useCallback(async (background = false) => {
+        if (!background) setHasLoaded(false);
         try {
             const res = await fetch(`/api/slots/${LIBRARY_SERVICE_ID}`);
             const json = await res.json() as { ok: boolean; data?: SlotsApiResponse; error?: string; code?: number };
             if (!json.ok) { if (json.code === 401) onSessionExpired(); return; }
             const data = json.data?.data?.freeslots ?? {};
             setFreeslots(data);
-            recomputeAvailability(data, selectedDate);
-        } catch { /* silently fail */ }
-    }, [onSessionExpired, selectedDate, recomputeAvailability]);
+            recomputeAvailability(data, selectedDateRef.current);
+        } catch { /* silently fail */ } finally {
+            if (!background) {
+                setHasLoaded(true);
+                setMapRowsKey((k) => k + 1);
+            }
+        }
+    }, [onSessionExpired, recomputeAvailability]);
 
     const handleBookingSuccess = useCallback(() => {
-        loadAvailability();
+        const pitchId = selectedSeat?.pitchId ?? null;
+        if (pitchId) {
+            setPulsePitchId(pitchId);
+            window.setTimeout(() => setPulsePitchId(null), 450);
+        }
+        setSuccessToastId((id) => id + 1);
+        setShowSuccessToast(true);
+        loadAvailability(true);
         onBookingSuccess?.();
-    }, [loadAvailability, onBookingSuccess]);
+    }, [selectedSeat, loadAvailability, onBookingSuccess]);
+
+    useEffect(() => {
+        const sentinel = scrollSentinelRef.current;
+        if (!sentinel) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => setHeaderScrolled(!entry.isIntersecting),
+            { threshold: 0 },
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, []);
 
     useEffect(() => { loadAvailability(); }, [loadAvailability]);
 
     useEffect(() => {
-        if (Object.keys(freeslots).length > 0) recomputeAvailability(freeslots, selectedDate);
+        if (Object.keys(freeslots).length === 0) return;
+        recomputeAvailability(freeslots, selectedDate);
+        if (dateSwitchTimerRef.current) clearTimeout(dateSwitchTimerRef.current);
+        dateSwitchTimerRef.current = setTimeout(() => {
+            setIsDateSwitching(false);
+            setMapRowsKey((k) => k + 1);
+        }, 150);
+        return () => {
+            if (dateSwitchTimerRef.current) clearTimeout(dateSwitchTimerRef.current);
+        };
     }, [selectedDate, freeslots, recomputeAvailability]);
+
+    function handleDateSelect(date: string) {
+        if (date === selectedDate) return;
+        setIsDateSwitching(true);
+        setSelectedDate(date);
+    }
 
     const availableDates = useMemo(() => Object.keys(freeslots).sort(), [freeslots]);
 
@@ -177,19 +324,30 @@ export function LibraryMap({ isLoggedIn, onSessionExpired, onBookingSuccess }: L
 
     const sortedRows = Object.keys(groupedByRow).map(Number).sort((a, b) => a - b);
 
-    function CompactSeat({ seat, onClick }: { seat: MapSeat; onClick: (s: MapSeat) => void }) {
+    function CompactSeat({
+        seat,
+        onClick,
+        pulse,
+    }: {
+        seat: MapSeat;
+        onClick: (s: MapSeat) => void;
+        pulse?: boolean;
+    }) {
         let colorClass = '';
         if (seat.status === 'available') {
             colorClass = 'bg-white text-[#16A34A] border border-[#16A34A] hover:bg-[#16A34A] hover:text-white cursor-pointer';
         } else if (seat.status === 'partially') {
             colorClass = 'bg-white text-[#D97706] border border-[#D97706] hover:bg-[#D97706] hover:text-white cursor-pointer';
-        } else {
+        } else if (seat.status === 'occupied') {
             colorClass = 'bg-white text-[#DC2626] border border-[#DC2626] hover:bg-[#DC2626] hover:text-white cursor-pointer';
+        } else {
+            return <div className="ucam-shimmer w-10 h-10 rounded-lg" aria-hidden />;
         }
         return (
             <button
+                type="button"
                 onClick={() => onClick(seat)}
-                className={`w-10 h-10 flex items-center justify-center font-semibold text-sm rounded-lg active:scale-95 transition-colors ${colorClass}`}
+                className={`w-10 h-10 flex items-center justify-center font-semibold text-sm rounded-lg cursor-pointer seat-tap active:scale-[0.92] active:shadow-md ${colorClass} ${pulse ? 'seat-pulse-success' : ''}`}
                 title={`Mesa ${seat.seat} - ${seat.status}`}
             >
                 {seat.seat}
@@ -197,18 +355,56 @@ export function LibraryMap({ isLoggedIn, onSessionExpired, onBookingSuccess }: L
         );
     }
 
+    const statsBumpKey = `${selectedDate}-${stats.available}-${stats.partially}-${stats.occupied}`;
+
+    const mapGridContent = filteredSeats.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-xl border border-[#E2E8F0] shadow-sm">
+            <p className="text-[#64748B] font-medium text-sm">No hay mesas que coincidan con los filtros.</p>
+            <button
+                onClick={() => { setShowFree(false); setShowPartial(false); setShowOccupied(false); setSelectedRow('all'); }}
+                className="mt-3 text-[#002855] font-semibold text-sm hover:underline"
+            >
+                Limpiar filtros
+            </button>
+        </div>
+    ) : (
+        <div className="pb-10" key={mapRowsKey}>
+            {sortedRows.map((row, index) => (
+                <div
+                    key={`row-${row}`}
+                    className="map-row-enter bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-4 mb-4"
+                    style={{ animationDelay: `${Math.min(index, 5) * 40}ms` }}
+                >
+                    <h4 className="text-sm font-semibold text-[#64748B] mb-3 uppercase tracking-wider">Fila {row}</h4>
+                    <div className="flex flex-wrap gap-2">
+                        {groupedByRow[row].sort((a, b) => a.seat - b.seat).map(seat => (
+                            <CompactSeat
+                                key={seat.pitchId}
+                                seat={seat}
+                                pulse={pulsePitchId === seat.pitchId}
+                                onClick={s => setSelectedSeat({ row: s.row, seat: s.seat, pitchId: s.pitchId })}
+                            />
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+
     return (
         <div className="flex flex-col gap-6">
+            <div ref={scrollSentinelRef} className="h-px -mb-px pointer-events-none" aria-hidden />
+
             {/* Sticky Header */}
-            <div className="sticky top-0 z-20 bg-[#F2F5F9]/95 backdrop-blur-sm pb-4 pt-2 -mt-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:-mt-0 sm:pt-0 border-b border-[#E2E8F0]">
+            <div className={`sticky top-0 z-20 bg-[#F2F5F9]/95 backdrop-blur-sm pb-4 pt-2 -mt-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:-mt-0 sm:pt-0 border-b border-[#E2E8F0] overflow-x-hidden ${headerScrolled ? 'sticky-header-shadow' : ''}`}>
                 <div className="flex items-center gap-3 sm:gap-4 mb-4">
-                    <h2 className="text-xl sm:text-2xl font-bold text-[#002855] shrink-0">El Mapa</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold text-[#002855] shrink-0">Reservar Sitio</h2>
                     <div className="flex-1 min-w-0 border-b border-[#CBD5E1]" aria-hidden />
                     <div className="relative shrink-0">
                         <select
                             value={selectedRow}
                             onChange={(e) => setSelectedRow(e.target.value)}
-                            className="appearance-none bg-white border border-[#E2E8F0] text-[#1E2940] text-sm font-medium px-3 sm:px-4 py-1.5 pr-8 rounded-lg focus:outline-none focus:border-[#0057A8] focus:ring-2 focus:ring-[#0057A8]/20 cursor-pointer shadow-sm transition-colors"
+                            className="appearance-none bg-white border border-[#E2E8F0] text-[#1E2940] text-sm font-medium px-3 sm:px-4 py-1.5 pr-8 rounded-lg focus:outline-none focus:border-[#002855] focus:ring-2 focus:ring-[#002855]/20 cursor-pointer shadow-sm transition-colors"
                         >
                             <option value="all">Todas las filas</option>
                             {rowsAvailable.map(row => (
@@ -223,74 +419,56 @@ export function LibraryMap({ isLoggedIn, onSessionExpired, onBookingSuccess }: L
 
                 {/* Date tabs */}
                 {availableDates.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto scrollbar-none mb-4">
-                        {availableDates.map(date => {
-                            const { short, full } = formatDateTab(date);
-                            const isSelected = date === selectedDate;
-                            return (
-                                <button
-                                    key={date}
-                                    onClick={() => setSelectedDate(date)}
-                                    title={full}
-                                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-colors whitespace-nowrap
-                                        ${isSelected
-                                            ? 'bg-[#002855] text-white border-[#002855]'
-                                            : 'bg-white text-[#64748B] border-[#CBD5E1] hover:border-[#002855] hover:text-[#002855]'}`}
-                                >
-                                    {short}
-                                </button>
-                            );
-                        })}
+                    <div className="mb-4">
+                        <DateTabs
+                            dates={availableDates}
+                            selectedDate={selectedDate}
+                            onSelect={handleDateSelect}
+                        />
                     </div>
                 )}
 
                 {/* Stats / filtros */}
-                <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                    {[
-                        { label: 'Libres', value: stats.available, color: '#16A34A', active: showFree, toggle: () => setShowFree(v => !v) },
-                        { label: 'Parcialmente libres', value: stats.partially, color: '#D97706', active: showPartial, toggle: () => setShowPartial(v => !v) },
-                        { label: 'Ocupadas', value: stats.occupied, color: '#DC2626', active: showOccupied, toggle: () => setShowOccupied(v => !v) },
-                    ].map(({ label, value, color, active, toggle }) => (
-                        <button
-                            key={label}
-                            onClick={toggle}
-                            className="rounded-xl px-2 py-2 sm:py-3 text-center shadow-sm border transition-colors cursor-pointer"
-                            style={active
-                                ? { backgroundColor: color, borderColor: color, color: 'white' }
-                                : { backgroundColor: 'white', borderColor: color, color }}
-                        >
-                            <p className="text-lg sm:text-xl font-bold">{value || '0'}</p>
-                            <p className="text-[10px] sm:text-xs font-medium mt-0.5">{label}</p>
-                        </button>
-                    ))}
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 overflow-x-hidden">
+                    <StatFilterButton
+                        label="Libres"
+                        value={stats.available}
+                        color="#16A34A"
+                        active={showFree}
+                        onToggle={() => setShowFree((v) => !v)}
+                        bumpKey={`free-${statsBumpKey}`}
+                    />
+                    <StatFilterButton
+                        label="Parcialmente libres"
+                        value={stats.partially}
+                        color="#D97706"
+                        active={showPartial}
+                        onToggle={() => setShowPartial((v) => !v)}
+                        bumpKey={`partial-${statsBumpKey}`}
+                    />
+                    <StatFilterButton
+                        label="Ocupadas"
+                        value={stats.occupied}
+                        color="#DC2626"
+                        active={showOccupied}
+                        onToggle={() => setShowOccupied((v) => !v)}
+                        bumpKey={`occupied-${statsBumpKey}`}
+                    />
                 </div>
             </div>
 
             {/* Results */}
-            {filteredSeats.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-xl border border-[#E2E8F0] shadow-sm">
-                    <p className="text-[#64748B] font-medium text-sm">No hay mesas que coincidan con los filtros.</p>
-                    <button
-                        onClick={() => { setShowFree(false); setShowPartial(false); setShowOccupied(false); setSelectedRow('all'); }}
-                        className="mt-3 text-[#0057A8] font-semibold text-sm hover:underline"
-                    >
-                        Limpiar filtros
-                    </button>
+            <div className="relative">
+                <div
+                    className={`crossfade-skeleton ${showMapSkeleton ? 'opacity-100 relative z-10' : 'opacity-0 absolute inset-0 pointer-events-none'}`}
+                    aria-hidden={!showMapSkeleton}
+                >
+                    <MapGridSkeleton selectedRow={selectedRow} />
                 </div>
-            ) : (
-                <div className="pb-10">
-                    {sortedRows.map(row => (
-                        <div key={`row-${row}`} className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-4 mb-4">
-                            <h4 className="text-sm font-semibold text-[#64748B] mb-3 uppercase tracking-wider">Fila {row}</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {groupedByRow[row].sort((a, b) => a.seat - b.seat).map(seat => (
-                                    <CompactSeat key={seat.pitchId} seat={seat} onClick={s => setSelectedSeat({ row: s.row, seat: s.seat, pitchId: s.pitchId })} />
-                                ))}
-                            </div>
-                        </div>
-                    ))}
+                <div className={`crossfade-content ${showMapSkeleton ? 'opacity-0' : 'opacity-100'}`}>
+                    {mapGridContent}
                 </div>
-            )}
+            </div>
 
             {selectedSeat && (
                 <BookingModal
@@ -301,6 +479,12 @@ export function LibraryMap({ isLoggedIn, onSessionExpired, onBookingSuccess }: L
                     onBookingSuccess={handleBookingSuccess}
                 />
             )}
+
+            <BookingSuccessToast
+                key={successToastId}
+                show={showSuccessToast}
+                onHide={() => setShowSuccessToast(false)}
+            />
         </div>
     );
 }

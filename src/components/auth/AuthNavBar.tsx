@@ -14,9 +14,6 @@ export function AuthNavBar(_props: AuthNavBarProps) {
     return <div style={{ display: 'none' }} />;
 }
 
-// Matte outline + hover fill, adapted for navy sidebar (#002855)
-const loginFormNavyOverrides =
-    '[&_label]:text-white/80 [&_input]:bg-white/10 [&_input]:border-white/20 [&_input]:text-white [&_input]:placeholder:text-white/30 [&_input:focus]:border-white/60 [&_input:focus]:ring-white/10 [&_.password-help-btn]:border-white/40 [&_.password-help-btn]:text-white/70 [&_.password-help-btn]:hover:border-white [&_.password-help-btn]:hover:text-white [&_button[type=submit]]:bg-white/5 [&_button[type=submit]]:border [&_button[type=submit]]:border-white/50 [&_button[type=submit]]:text-white [&_button[type=submit]]:font-semibold [&_button[type=submit]]:hover:bg-white [&_button[type=submit]]:hover:text-[#002855] [&_button[type=submit]]:disabled:opacity-50';
 const btnMatteNavy =
     'text-xs font-semibold rounded-lg py-2 transition-colors border bg-white/5';
 const btnMatteNavyPrimary = `${btnMatteNavy} text-white border-white/50 hover:bg-white hover:text-[#002855]`;
@@ -82,10 +79,7 @@ export function SidebarUserPanel({ isLoggedIn, userEmail, onLoginSuccess, onLogo
             <div className="bg-white/10 rounded-xl border border-white/15 p-4 flex flex-col gap-3">
                 <p className="text-white font-semibold text-sm">Iniciar sesión</p>
                 <p className="text-white/50 text-xs -mt-1">Accede con tu cuenta UCAM</p>
-                {/* LoginForm with overrides for dark background */}
-                <div className={loginFormNavyOverrides}>
-                    <LoginForm onLoginSuccess={onLoginSuccess} />
-                </div>
+                <LoginForm onLoginSuccess={onLoginSuccess} theme="dark" />
             </div>
         );
     }
@@ -125,9 +119,10 @@ export function SidebarUserPanel({ isLoggedIn, userEmail, onLoginSuccess, onLogo
             {isAdding ? (
                 <div className="bg-white/10 rounded-xl border border-white/15 p-3 flex flex-col gap-2">
                     <p className="text-white/80 text-xs font-semibold uppercase tracking-wider">Nueva cuenta</p>
-                    <div className={loginFormNavyOverrides}>
-                        <LoginForm onLoginSuccess={(email) => { fetchAccounts(); setIsAdding(false); onLoginSuccess(email); }} />
-                    </div>
+                    <LoginForm
+                        theme="dark"
+                        onLoginSuccess={(email) => { fetchAccounts(); setIsAdding(false); onLoginSuccess(email); }}
+                    />
                     <button type="button" onClick={() => setIsAdding(false)} className={`w-full ${btnMatteNavyPrimary}`}>Cancelar</button>
                 </div>
             ) : (
@@ -267,7 +262,7 @@ export function AuthHeader({ isLoggedIn, userEmail, onLoginSuccess, onLogout }: 
                                         <div key={acc} className="flex items-center justify-between px-3 py-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC]">
                                             <span className="text-[#1E2940] text-xs truncate max-w-[150px]">{acc}</span>
                                             <div className="flex gap-2">
-                                                <button onClick={() => switchAccount(acc)} className="text-[#0057A8] hover:underline text-xs font-semibold">Usar</button>
+                                                <button onClick={() => switchAccount(acc)} className="text-[#002855] hover:underline text-xs font-semibold">Usar</button>
                                                 <button onClick={() => removeAccount(acc)} className="text-[#DC2626] hover:underline text-xs font-semibold">×</button>
                                             </div>
                                         </div>

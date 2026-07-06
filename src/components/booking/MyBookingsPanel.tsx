@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { MyBooking } from '@/lib/takeaspot/api';
+import { canCheckin, mergeBookedAt } from '@/lib/booking/checkin';
+import { partitionBookings } from '@/lib/booking/bookingsDisplay';
 
 interface MyBookingsPanelProps {
     isLoggedIn: boolean;
@@ -23,6 +25,11 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired, refreshTrigger =
     const [error, setError] = useState<string | null>(null);
     const [actionStatus, setActionStatus] = useState<Record<string, 'loading' | 'done' | 'error' | 'checkin_loading' | 'checkin_error' | 'checkin_done'>>({});
     const [expanded, setExpanded] = useState(false);
+    const [pastExpanded, setPastExpanded] = useState(false);
+
+    useEffect(() => {
+        if (!expanded) setPastExpanded(false);
+    }, [expanded]);
 
     const loadBookings = useCallback(async () => {
         if (!isLoggedIn) return;
@@ -36,7 +43,7 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired, refreshTrigger =
                 setError(json.error ?? 'Error al cargar reservas.');
                 return;
             }
-            setBookings(json.data ?? []);
+            setBookings(mergeBookedAt(json.data ?? []));
         } catch {
             setError('Error de red.');
         } finally {
@@ -90,23 +97,6 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired, refreshTrigger =
         }
     }
 
-    function canCheckin(b: MyBooking): boolean {
-        const [y, m, d] = b.date.split('-');
-        const [hourStr, minStr] = b.timeFrom.split(':');
-        const [endHourStr, endMinStr] = b.timeTo.split(':');
-
-        if (!y || !m || !d || !hourStr || !minStr || !endHourStr || !endMinStr) return false;
-
-        const startTime = new Date(Number(y), Number(m) - 1, Number(d), Number(hourStr), Number(minStr), 0);
-        const endTime = new Date(Number(y), Number(m) - 1, Number(d), Number(endHourStr), Number(endMinStr), 0);
-        const now = new Date();
-
-        const diffStartMin = (startTime.getTime() - now.getTime()) / (1000 * 60);
-        const diffEndMin = (endTime.getTime() - now.getTime()) / (1000 * 60);
-
-        return diffStartMin <= 0 && diffStartMin > -30 && diffEndMin > 0;
-    }
-
     if (!isLoggedIn) {
         return (
             <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 text-center text-[#64748B] text-sm shadow-sm">
@@ -132,7 +122,7 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired, refreshTrigger =
 
                 {isLoading && bookings.length === 0 && (
                     <div className="flex items-center justify-center py-8 text-[#64748B] gap-2">
-                        <span className="h-4 w-4 border-2 border-[#0057A8]/30 border-t-[#0057A8] animate-spin rounded-full" />
+                        <span className="h-4 w-4 border-2 border-[#002855]/30 border-t-[#002855] animate-spin rounded-full" />
                         <span className="text-sm">Cargando reservas...</span>
                     </div>
                 )}
@@ -144,20 +134,21 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired, refreshTrigger =
                 )}
 
                 {(() => {
-                    const active = bookings.filter(b => actionStatus[b.id] !== 'done');
-                    const first = active[0];
-                    const rest = active.slice(1);
+                    const visible = bookings.filter((b) => actionStatus[b.id] !== 'done');
+                    const { past, featured, rest } = partitionBookings(visible);
+                    const hiddenCount = rest.length + past.length;
+                    const showExpandToggle = hiddenCount > 0;
 
-                    const renderCard = (b: MyBooking) => {
+                    const renderCard = (b: MyBooking, muted = false) => {
                         const status = actionStatus[b.id];
                         const isDentro = b.status.toLowerCase().includes('dentro');
                         const isAusente = b.status.toLowerCase().includes('ausente');
-                        const isCheckinEligible = !isDentro && !isAusente && canCheckin(b);
+                        const isCheckinEligible = !muted && !isDentro && !isAusente && canCheckin(b);
 
                         return (
                             <div
                                 key={b.id}
-                                className={`bg-white rounded-xl border shadow-sm p-4 flex flex-col gap-2 ${isDentro ? 'border-[#16A34A] ring-1 ring-[#16A34A]/20' : 'border-[#E2E8F0]'}`}
+                                className={`bg-white rounded-xl border shadow-sm p-4 flex flex-col gap-2 ${isDentro ? 'border-[#16A34A] ring-1 ring-[#16A34A]/20' : 'border-[#E2E8F0]'} ${muted ? 'opacity-75' : ''}`}
                             >
                                 <div className="flex justify-between items-center">
                                     <span className="text-[#1E2940] font-semibold text-sm">{formatDate(b.date)}</span>
@@ -168,7 +159,7 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired, refreshTrigger =
                                 <div className={`font-bold text-xl tracking-wide ${isDentro ? 'text-[#16A34A]' : 'text-[#002855]'}`}>
                                     {b.timeFrom} – {b.timeTo}
                                 </div>
-                                <div className="text-[#0057A8] font-semibold text-sm bg-[#EEF4FB] rounded-lg py-1.5 px-3 inline-block self-start">
+                                <div className="text-[#002855] font-semibold text-sm bg-[#EEF4FB] rounded-lg py-1.5 px-3 inline-block self-start">
                                     {b.seat || b.location}
                                 </div>
                                 <div className="mt-1 flex items-center gap-2">
@@ -187,14 +178,15 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired, refreshTrigger =
                                     )}
                                     <button
                                         onClick={() => handleCancel(b.id)}
-                                        disabled={status === 'loading' || status === 'checkin_loading' || isDentro}
-                                        title={isDentro ? 'Estás dentro de la instalación' : 'Cancelar reserva'}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-[#DC2626] bg-white hover:bg-[#DC2626] hover:text-white text-[#DC2626] font-semibold text-sm disabled:opacity-50 transition-colors ${!isCheckinEligible ? 'w-full' : ''} ${isDentro ? 'cursor-not-allowed' : ''}`}
+                                        disabled={muted || status === 'loading' || status === 'checkin_loading' || isDentro}
+                                        title={isDentro ? 'Estás dentro de la instalación' : muted ? 'Reserva finalizada' : 'Cancelar reserva'}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-[#DC2626] bg-white hover:bg-[#DC2626] hover:text-white text-[#DC2626] font-semibold text-sm disabled:opacity-50 transition-colors ${!isCheckinEligible ? 'w-full' : ''} ${isDentro || muted ? 'cursor-not-allowed' : ''}`}
                                     >
                                         {status === 'loading' ? (
                                             <span className="h-4 w-4 border-2 border-[#DC2626]/30 border-t-[#DC2626] animate-spin inline-block rounded-full" />
                                         ) : status === 'error' ? 'Error'
                                         : isDentro ? 'Dentro'
+                                        : muted ? 'Finalizada'
                                         : 'Cancelar'}
                                     </button>
                                 </div>
@@ -204,31 +196,61 @@ export function MyBookingsPanel({ isLoggedIn, onSessionExpired, refreshTrigger =
 
                     return (
                         <>
-                            {first && renderCard(first)}
-
-                            {/* Collapsible rest — grid-rows trick for height:auto animation */}
-                            {rest.length > 0 && (
-                                <div className={`grid transition-all duration-300 ease-in-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-                                    <div className="overflow-hidden flex flex-col gap-3">
-                                        <div className="pt-0 flex flex-col gap-3">
-                                            {rest.map(renderCard)}
+                            {past.length > 0 && (
+                                <div className={`accordion-panel ${expanded ? 'accordion-panel--open' : 'accordion-panel--closed'}`}>
+                                    <div className="overflow-hidden flex flex-col gap-3 min-h-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPastExpanded((v) => !v)}
+                                            className="flex items-center justify-center gap-1.5 w-full py-2 text-sm text-[#64748B] hover:text-[#002855] font-medium transition-colors"
+                                        >
+                                            <svg
+                                                className={`w-4 h-4 accordion-chevron ${pastExpanded ? 'accordion-chevron--open' : ''}`}
+                                                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                            >
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                            {pastExpanded ? 'Ocultar reservas anteriores' : `Ver reservas anteriores (${past.length})`}
+                                        </button>
+                                        <div className={`accordion-panel ${pastExpanded ? 'accordion-panel--open' : 'accordion-panel--closed'}`}>
+                                            <div className="overflow-hidden flex flex-col gap-3 min-h-0">
+                                                {past.map((b) => renderCard(b, true))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
+                            {featured ? renderCard(featured) : (
+                                !isLoading && visible.length > 0 && past.length > 0 && !expanded && (
+                                    <div className="py-6 text-[#64748B] text-sm text-center bg-white rounded-xl border border-[#E2E8F0] shadow-sm">
+                                        No tienes reservas activas ni próximas
+                                    </div>
+                                )
+                            )}
+
                             {rest.length > 0 && (
+                                <div className={`accordion-panel ${expanded ? 'accordion-panel--open' : 'accordion-panel--closed'}`}>
+                                    <div className="overflow-hidden flex flex-col gap-3 min-h-0">
+                                        {rest.map((b) => renderCard(b))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {showExpandToggle && (
                                 <button
-                                    onClick={() => setExpanded(v => !v)}
+                                    type="button"
+                                    onClick={() => setExpanded((v) => !v)}
                                     className="flex items-center justify-center gap-1.5 w-full py-2 text-sm text-[#64748B] hover:text-[#002855] font-medium transition-colors"
+                                    aria-expanded={expanded}
                                 >
                                     <svg
-                                        className={`w-4 h-4 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
+                                        className={`w-4 h-4 accordion-chevron ${expanded ? 'accordion-chevron--open' : ''}`}
                                         fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                     >
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
-                                    {expanded ? 'Ocultar reservas' : `Ver todas mis reservas (${active.length})`}
+                                    {expanded ? 'Ocultar reservas' : `Ver todas mis reservas (${visible.length})`}
                                 </button>
                             )}
                         </>
